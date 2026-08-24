@@ -40,6 +40,16 @@ export interface PackItem {
   done: boolean
 }
 
+/** 旅先で撮った写真。行程とは別に「思い出アルバム」として持つ */
+export interface Memory {
+  id: string
+  photoId: string
+  caption: string
+  /** 何日目の思い出か。空なら未指定 */
+  dayId: string
+  createdAt: number
+}
+
 export interface Trip {
   id: string
   title: string
@@ -52,6 +62,7 @@ export interface Trip {
   memo: string
   days: Day[]
   packing: PackItem[]
+  memories: Memory[]
   createdAt: number
   updatedAt: number
 }

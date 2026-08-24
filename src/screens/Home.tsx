@@ -65,6 +65,7 @@ function TripCard({ trip, index }: { trip: Trip; index: number }) {
           <div className="trip-card__counts">
             {days}日間・予定 {plans}件
             {trip.members.length ? `・${trip.members.length + 1}人` : ''}
+            {trip.memories.length > 0 ? `・思い出 ${trip.memories.length}枚` : ''}
           </div>
         </div>
         <span className="iconbtn iconbtn--plain" aria-hidden="true">

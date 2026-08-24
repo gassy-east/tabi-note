@@ -1,9 +1,9 @@
 import { useSyncExternalStore } from 'react'
-import type { Activity, CategoryId, Day, PackItem, ThemeId, Trip } from '../types'
+import type { Activity, CategoryId, Day, Memory, PackItem, ThemeId, Trip } from '../types'
 import { photosDb, tripsDb } from '../lib/db'
 import { addDays, nightsBetween, todayIso } from '../lib/date'
 import { moveItem, uid } from '../lib/util'
-import { DEFAULT_PACKING } from '../lib/catalog'
+import { getPackingTemplate } from './settings'
 
 interface StoreState {
   loaded: boolean
@@ -46,13 +46,24 @@ function sortTrips(trips: Trip[]): Trip[] {
     )
 }
 
+/** 古いバージョンで作られた旅にも、後から足した項目を補う */
+export function normalizeTrip(trip: Trip): Trip {
+  return {
+    ...trip,
+    packing: trip.packing ?? [],
+    memories: trip.memories ?? [],
+    members: trip.members ?? [],
+    days: (trip.days ?? []).map((d) => ({ ...d, activities: d.activities ?? [] })),
+  }
+}
+
 let initialized = false
 export async function initStore(): Promise<void> {
   if (initialized) return
   initialized = true
   try {
     const trips = await tripsDb.all()
-    setState({ loaded: true, trips: sortTrips(trips) })
+    setState({ loaded: true, trips: sortTrips(trips.map(normalizeTrip)) })
   } catch {
     setState({ loaded: true, trips: [] })
   }
@@ -102,8 +113,9 @@ export function createTrip(input: NewTripInput): string {
     memo: '',
     days: Array.from({ length: count }, (_, i) => emptyDay(addDays(input.startDate, i))),
     packing: input.withPackingTemplate
-      ? DEFAULT_PACKING.map((label) => ({ id: uid('pk_'), label, done: false }))
+      ? getPackingTemplate().map((label) => ({ id: uid('pk_'), label, done: false }))
       : [],
+    memories: [],
     createdAt: now,
     updatedAt: now,
   }
@@ -129,6 +141,8 @@ export function duplicateTrip(id: string): string | null {
     activities: d.activities.map((a) => ({ ...a, id: uid('act_') })),
   }))
   copy.packing = copy.packing.map((p) => ({ ...p, id: uid('pk_'), done: false }))
+  // 思い出は「その旅で起きたこと」なので複製先には引き継がない
+  copy.memories = []
   persist(copy)
   setState({ ...state, trips: sortTrips([copy, ...state.trips]) })
   return copy.id
@@ -142,6 +156,7 @@ export function collectPhotoIds(trip: Trip): string[] {
       for (const p of act.photoIds) ids.add(p)
     }
   }
+  for (const memory of trip.memories ?? []) ids.add(memory.photoId)
   return [...ids]
 }
 
@@ -177,8 +192,13 @@ export function updateTripMeta(id: string, patch: TripMetaPatch): void {
 
 export function setCoverPhoto(id: string, photoId: string | null): void {
   updateTrip(id, (trip) => {
-    if (trip.coverPhotoId && trip.coverPhotoId !== photoId) void photosDb.remove(trip.coverPhotoId)
-    return { ...trip, coverPhotoId: photoId }
+    const old = trip.coverPhotoId
+    const next = { ...trip, coverPhotoId: photoId }
+    // 思い出や予定でも使っている写真は消さない
+    if (old && old !== photoId && !collectPhotoIds(next).includes(old)) {
+      void photosDb.remove(old)
+    }
+    return next
   })
 }
 
@@ -324,11 +344,68 @@ export function replacePacking(tripId: string, items: PackItem[]): void {
   updateTrip(tripId, (trip) => ({ ...trip, packing: items }))
 }
 
+/** テンプレートの項目を、まだ無いものだけ追加する */
+export function applyPackingTemplate(tripId: string, labels: string[]): number {
+  let added = 0
+  updateTrip(tripId, (trip) => {
+    const existing = new Set(trip.packing.map((p) => p.label))
+    const fresh = labels.filter((l) => !existing.has(l))
+    added = fresh.length
+    return {
+      ...trip,
+      packing: [...trip.packing, ...fresh.map((label) => ({ id: uid('pk_'), label, done: false }))],
+    }
+  })
+  return added
+}
+
+// ---------- 思い出アルバム ----------
+
+export function addMemories(tripId: string, photoIds: string[]): void {
+  if (photoIds.length === 0) return
+  const now = Date.now()
+  updateTrip(tripId, (trip) => ({
+    ...trip,
+    memories: [
+      ...trip.memories,
+      ...photoIds.map((photoId, i) => ({
+        id: uid('mm_'),
+        photoId,
+        caption: '',
+        dayId: '',
+        createdAt: now + i,
+      })),
+    ],
+  }))
+}
+
+export function updateMemory(tripId: string, memory: Memory): void {
+  updateTrip(tripId, (trip) => ({
+    ...trip,
+    memories: trip.memories.map((m) => (m.id === memory.id ? memory : m)),
+  }))
+}
+
+export function removeMemory(tripId: string, memoryId: string): void {
+  const trip = state.trips.find((t) => t.id === tripId)
+  const target = trip?.memories.find((m) => m.id === memoryId)
+  updateTrip(tripId, (t) => ({ ...t, memories: t.memories.filter((m) => m.id !== memoryId) }))
+  if (target) {
+    const after = state.trips.find((t) => t.id === tripId)
+    // 表紙などで使い回している写真は残す
+    if (after && !collectPhotoIds(after).includes(target.photoId)) {
+      void photosDb.remove(target.photoId)
+    }
+  }
+}
+
 // ---------- バックアップの読み込み ----------
 
 export function importTrips(trips: Trip[]): number {
   const existing = new Set(state.trips.map((t) => t.id))
-  const incoming = trips.map((t) => (existing.has(t.id) ? { ...t, id: uid('trip_') } : t))
+  const incoming = trips
+    .map(normalizeTrip)
+    .map((t) => (existing.has(t.id) ? { ...t, id: uid('trip_') } : t))
   for (const t of incoming) persist(t)
   setState({ ...state, trips: sortTrips([...incoming, ...state.trips]) })
   return incoming.length

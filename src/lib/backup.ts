@@ -1,10 +1,15 @@
 import type { PhotoRecord, Trip } from '../types'
 import { photosDb } from './db'
 import { collectPhotoIds, importTrips } from '../state/store'
+import {
+  getPackingTemplate,
+  isFactoryPackingTemplate,
+  setPackingTemplate,
+} from '../state/settings'
 import { downloadBlob } from './image'
 
 const FORMAT = 'tabinote-backup'
-const VERSION = 1
+const VERSION = 2
 
 interface BackupFile {
   format: string
@@ -12,6 +17,7 @@ interface BackupFile {
   exportedAt: string
   trips: Trip[]
   photos: PhotoRecord[]
+  packingTemplate?: string[]
 }
 
 export async function exportBackup(trips: Trip[]): Promise<void> {
@@ -30,6 +36,7 @@ export async function exportBackup(trips: Trip[]): Promise<void> {
     exportedAt: new Date().toISOString(),
     trips,
     photos,
+    packingTemplate: getPackingTemplate(),
   }
   const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' })
   const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, '')
@@ -51,6 +58,12 @@ export async function importBackup(file: File): Promise<number> {
       await photosDb.put(photo)
     }
   }
+
+  // 持ち物テンプレートは、この端末でまだ手を加えていないときだけ復元する
+  if (Array.isArray(data.packingTemplate) && isFactoryPackingTemplate()) {
+    setPackingTemplate(data.packingTemplate)
+  }
+
   return importTrips(data.trips)
 }
 

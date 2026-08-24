@@ -3,6 +3,8 @@ import { Sheet } from './Sheet'
 import { Icon } from './Icon'
 import { toast } from './Toast'
 import { useStore } from '../state/store'
+import { usePackingTemplate } from '../state/settings'
+import { PackingTemplateSheet } from './PackingTemplateSheet'
 import { exportBackup, importBackup } from '../lib/backup'
 import { estimateUsage } from '../lib/db'
 
@@ -17,6 +19,8 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
   const fileRef = useRef<HTMLInputElement>(null)
   const [usage, setUsage] = useState<{ usage: number; quota: number } | null>(null)
   const [busy, setBusy] = useState(false)
+  const [template, setTemplate] = useState(false)
+  const packingTemplate = usePackingTemplate()
 
   useEffect(() => {
     void estimateUsage().then(setUsage)
@@ -53,7 +57,24 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
   }
 
   return (
+    <>
     <Sheet title="設定とバックアップ" onClose={onClose}>
+      <div className="menu" style={{ padding: 0, marginBottom: 18 }}>
+        <button className="menu__item" onClick={() => setTemplate(true)}>
+          <span
+            className="menu__icon"
+            style={{ background: 'var(--coral-soft)', color: 'var(--coral-deep)' }}
+          >
+            <Icon name="suitcase" size={19} />
+          </span>
+          <span>
+            持ち物テンプレートを編集
+            <small>新しい旅の初期リスト（現在 {packingTemplate.length} 項目）</small>
+          </span>
+          <Icon name="right" size={17} />
+        </button>
+      </div>
+
       <div
         style={{
           padding: '14px 16px',
@@ -128,5 +149,7 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
         onChange={(e) => void handleImport(e.target.files?.[0])}
       />
     </Sheet>
+    {template ? <PackingTemplateSheet onClose={() => setTemplate(false)} /> : null}
+    </>
   )
 }

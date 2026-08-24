@@ -4,6 +4,7 @@ import {
   A4_H,
   A4_W,
   buildDayPoster,
+  buildMemoriesPoster,
   buildShioriPages,
   buildTripPoster,
   createRoot,
@@ -86,6 +87,20 @@ export async function exportTripPng(trip: Trip): Promise<void> {
     await readyForCapture(root)
     const canvas = await capture(poster, 1.5)
     downloadDataUrl(canvas.toDataURL('image/png'), `${safeName(trip.title)}-まとめ.png`)
+  } finally {
+    root.remove()
+  }
+}
+
+/** 思い出アルバムを PNG で書き出す */
+export async function exportMemoriesPng(trip: Trip): Promise<void> {
+  await preloadTripPhotos(trip)
+  const root = createRoot()
+  try {
+    const poster = buildMemoriesPoster(trip, root)
+    await readyForCapture(root)
+    const canvas = await capture(poster, 1.3)
+    downloadDataUrl(canvas.toDataURL('image/png'), `${safeName(trip.title)}-思い出.png`)
   } finally {
     root.remove()
   }

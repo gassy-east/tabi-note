@@ -3,7 +3,13 @@ import { Sheet } from './Sheet'
 import { Icon } from './Icon'
 import { BusyVeil } from './BusyVeil'
 import { toast } from './Toast'
-import { exportCoverPng, exportDayPng, exportTripPdf, exportTripPng } from '../lib/export/render'
+import {
+  exportCoverPng,
+  exportDayPng,
+  exportMemoriesPng,
+  exportTripPdf,
+  exportTripPng,
+} from '../lib/export/render'
 import { formatJp } from '../lib/date'
 import type { Trip } from '../types'
 
@@ -57,7 +63,10 @@ export function ExportSheet({ trip, dayIndex, onClose }: ExportSheetProps) {
             </span>
             <span>
               旅のしおり（PDF）
-              <small>表紙 ＋ 日ごとのページ ＋ 持ち物・費用のまとめ</small>
+              <small>
+                表紙 ＋ 日ごとのページ ＋ 持ち物・費用のまとめ
+                {trip.memories.length > 0 ? ' ＋ 思い出アルバム' : ''}
+              </small>
             </span>
             <Icon name="download" size={17} />
           </button>
@@ -99,6 +108,26 @@ export function ExportSheet({ trip, dayIndex, onClose }: ExportSheetProps) {
             </span>
             <Icon name="download" size={17} />
           </button>
+
+          {trip.memories.length > 0 ? (
+            <button
+              className="menu__item"
+              disabled={busy !== null}
+              onClick={() => void run('思い出をならべています…', () => exportMemoriesPng(trip))}
+            >
+              <span
+                className="menu__icon"
+                style={{ background: '#e3f1f7', color: '#2f7fa8' }}
+              >
+                <Icon name="camera" size={19} />
+              </span>
+              <span>
+                思い出アルバム（PNG）
+                <small>旅先の写真 {trip.memories.length} 枚を 1 枚にまとめて</small>
+              </span>
+              <Icon name="download" size={17} />
+            </button>
+          ) : null}
 
           <button
             className="menu__item"

@@ -24,15 +24,21 @@ import { ActivitySheet } from '../components/ActivitySheet'
 import { DaySheet } from '../components/DaySheet'
 import { ExportSheet } from '../components/ExportSheet'
 import { TripFormSheet } from '../components/TripFormSheet'
+import { PackingTemplateSheet } from '../components/PackingTemplateSheet'
+import { MemoryAlbum } from '../components/MemoryAlbum'
+import { Lightbox } from '../components/Lightbox'
 import { toast } from '../components/Toast'
 import { usePhoto } from '../state/photos'
+import { setPackingTemplate, usePackingTemplate } from '../state/settings'
 import {
   addPackItem,
+  applyPackingTemplate,
   deleteTrip,
   duplicateTrip,
   emptyActivity,
   removePackItem,
   reorderActivities,
+  replacePacking,
   sortActivitiesByTime,
   togglePackItem,
   useTrip,
@@ -47,9 +53,13 @@ import type { Activity, Day, Trip } from '../types'
 
 /* ---------------------------------------------------------------- 写真 */
 
-function Thumb({ id }: { id: string }) {
+function Thumb({ id, onOpen }: { id: string; onOpen: () => void }) {
   const url = usePhoto(id)
-  return <div className="act__photo">{url ? <img src={url} alt="" loading="lazy" /> : null}</div>
+  return (
+    <button className="act__photo" onClick={onOpen} aria-label="写真を大きく見る">
+      {url ? <img src={url} alt="" loading="lazy" /> : null}
+    </button>
+  )
 }
 
 /* ------------------------------------------------------------ 予定カード */
@@ -57,9 +67,10 @@ function Thumb({ id }: { id: string }) {
 interface ActivityRowProps {
   activity: Activity
   onEdit: () => void
+  onPhotoOpen: (index: number) => void
 }
 
-function ActivityRow({ activity, onEdit }: ActivityRowProps) {
+function ActivityRow({ activity, onEdit, onPhotoOpen }: ActivityRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: activity.id,
   })
@@ -156,8 +167,8 @@ function ActivityRow({ activity, onEdit }: ActivityRowProps) {
 
         {activity.photoIds.length > 0 ? (
           <div className={clsx('act__photos', activity.photoIds.length === 1 && 'act__photos--single')}>
-            {activity.photoIds.map((id) => (
-              <Thumb key={id} id={id} />
+            {activity.photoIds.map((id, i) => (
+              <Thumb key={id} id={id} onOpen={() => onPhotoOpen(i)} />
             ))}
           </div>
         ) : null}
@@ -170,6 +181,9 @@ function ActivityRow({ activity, onEdit }: ActivityRowProps) {
 
 function PackingCard({ trip }: { trip: Trip }) {
   const [input, setInput] = useState('')
+  const [menu, setMenu] = useState(false)
+  const [template, setTemplate] = useState(false)
+  const packingTemplate = usePackingTemplate()
   const done = trip.packing.filter((p) => p.done).length
   const rate = trip.packing.length ? Math.round((done / trip.packing.length) * 100) : 0
 
@@ -180,9 +194,19 @@ function PackingCard({ trip }: { trip: Trip }) {
           <Icon name="suitcase" size={17} />
           持ち物リスト
         </h3>
-        <span className="tiny muted num">
-          {done} / {trip.packing.length}
-        </span>
+        <div className="row" style={{ gap: 4 }}>
+          <span className="tiny muted num">
+            {done} / {trip.packing.length}
+          </span>
+          <button
+            className="iconbtn iconbtn--plain"
+            style={{ width: 32, height: 32 }}
+            onClick={() => setMenu(true)}
+            aria-label="持ち物リストの操作"
+          >
+            <Icon name="dots" size={17} />
+          </button>
+        </div>
       </div>
       <div className="pack__bar">
         <i style={{ width: `${rate}%` }} />
@@ -230,6 +254,92 @@ function PackingCard({ trip }: { trip: Trip }) {
           追加
         </button>
       </form>
+
+      {menu ? (
+        <Sheet title="持ち物リスト" onClose={() => setMenu(false)}>
+          <div className="menu" style={{ padding: 0 }}>
+            <button
+              className="menu__item"
+              disabled={packingTemplate.length === 0}
+              onClick={() => {
+                const added = applyPackingTemplate(trip.id, packingTemplate)
+                setMenu(false)
+                toast(
+                  added > 0 ? `テンプレートから${added}項目を追加しました` : '追加する項目はありませんでした',
+                  added > 0 ? 'success' : 'info',
+                )
+              }}
+            >
+              <span className="menu__icon">
+                <Icon name="download" size={18} />
+              </span>
+              <span>
+                テンプレートから読み込む
+                <small>まだ無い項目だけを足します（{packingTemplate.length} 項目）</small>
+              </span>
+            </button>
+            <button
+              className="menu__item"
+              disabled={trip.packing.length === 0}
+              onClick={() => {
+                setPackingTemplate(trip.packing.map((p) => p.label))
+                setMenu(false)
+                toast('このリストをテンプレートに保存しました')
+              }}
+            >
+              <span className="menu__icon">
+                <Icon name="upload" size={18} />
+              </span>
+              <span>
+                このリストをテンプレートに保存
+                <small>次の旅から、この内容が初期値になります</small>
+              </span>
+            </button>
+            <button
+              className="menu__item"
+              onClick={() => {
+                setMenu(false)
+                setTemplate(true)
+              }}
+            >
+              <span className="menu__icon">
+                <Icon name="pencil" size={18} />
+              </span>
+              <span>
+                テンプレートを編集
+                <small>並び順や項目名を整える</small>
+              </span>
+            </button>
+            <button
+              className="menu__item"
+              disabled={done === 0}
+              onClick={() => {
+                replacePacking(
+                  trip.id,
+                  trip.packing.map((p) => ({ ...p, done: false })),
+                )
+                setMenu(false)
+                toast('チェックをすべて外しました')
+              }}
+            >
+              <span className="menu__icon">
+                <Icon name="check" size={18} />
+              </span>
+              <span>
+                チェックを全部外す
+                <small>帰りの荷造りにも使えます</small>
+              </span>
+            </button>
+          </div>
+        </Sheet>
+      ) : null}
+
+      {template ? (
+        <PackingTemplateSheet
+          onClose={() => setTemplate(false)}
+          fromTrip={{ title: trip.title, labels: trip.packing.map((p) => p.label) }}
+        />
+      ) : null}
     </section>
   )
 }
@@ -249,6 +359,7 @@ export function TripDetail({ tripId }: { tripId: string }) {
   const [menu, setMenu] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [dragging, setDragging] = useState(false)
+  const [photoView, setPhotoView] = useState<{ ids: string[]; index: number } | null>(null)
   const dayBarRef = useRef<HTMLDivElement>(null)
 
   const sensors = useSensors(
@@ -493,6 +604,9 @@ export function TripDetail({ tripId }: { tripId: string }) {
                           <ActivityRow
                             activity={activity}
                             onEdit={() => setEditing({ activity, isNew: false })}
+                            onPhotoOpen={(photoIndex) =>
+                              setPhotoView({ ids: activity.photoIds, index: photoIndex })
+                            }
                           />
                           {!dragging && next && activity.place && next.place ? (
                             <div className="tl-gap">
@@ -532,6 +646,10 @@ export function TripDetail({ tripId }: { tripId: string }) {
           <PackingCard trip={trip} />
         </div>
 
+        <div style={{ marginTop: 16 }}>
+          <MemoryAlbum trip={trip} />
+        </div>
+
         {trip.memo ? (
           <section className="card" style={{ marginTop: 16, padding: '16px 18px' }}>
             <h3 className="section-title" style={{ fontSize: 15, marginBottom: 8 }}>
@@ -551,6 +669,15 @@ export function TripDetail({ tripId }: { tripId: string }) {
           <Icon name="plus" size={20} strokeWidth={2.6} />
           予定を追加
         </button>
+      ) : null}
+
+      {photoView ? (
+        <Lightbox
+          photoIds={photoView.ids}
+          index={photoView.index}
+          onIndexChange={(i) => setPhotoView({ ...photoView, index: i })}
+          onClose={() => setPhotoView(null)}
+        />
       ) : null}
 
       {editing && day ? (

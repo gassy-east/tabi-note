@@ -1,4 +1,4 @@
-import type { Activity, Day, Trip } from '../../types'
+import type { Activity, Day, Memory, Trip } from '../../types'
 import { category, theme } from '../catalog'
 import { formatDot, formatJp, nightsBetween, rangeLabel, weekday } from '../date'
 import { yen } from '../util'
@@ -113,6 +113,19 @@ const CSS = `
 .sh-total span { font-size: 12px; font-weight: 800; letter-spacing: 0.14em; color: #6b7482; }
 .sh-total b { font-size: 26px; font-weight: 700; }
 .sh-note { font-size: 13px; color: #3d4552; white-space: pre-wrap; margin-top: 14px; line-height: 1.8; }
+
+/* ---- 思い出アルバム ---- */
+.sh-memgrid { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 22px; }
+.sh-mem { width: 334px; }
+.sh-mem-img { width: 334px; height: 232px; border-radius: 12px; overflow: hidden; background: #f0ebe2; }
+.sh-mem-img img { width: 100%; height: 100%; object-fit: cover; }
+.sh-mem-cap { font-size: 12.5px; color: #3d4552; margin-top: 8px; line-height: 1.55; }
+.sh-mem-day { font-size: 10px; font-weight: 800; letter-spacing: 0.12em; color: #98a1ae; margin-top: 4px; }
+.sh-poster-mem { display: flex; flex-wrap: wrap; gap: 24px; }
+.sh-poster-mem .sh-mem { width: 468px; }
+.sh-poster-mem .sh-mem-img { width: 468px; height: 330px; border-radius: 20px; }
+.sh-poster-mem .sh-mem-cap { font-size: 20px; margin-top: 13px; }
+.sh-poster-mem .sh-mem-day { font-size: 15px; margin-top: 6px; }
 
 /* ---- PNG ポスター ---- */
 .sh-poster { width: 1080px; background: #fbf7f0; position: relative; overflow: hidden;
@@ -359,6 +372,48 @@ function summaryPage(trip: Trip): HTMLElement | null {
   return page
 }
 
+const MEMORIES_PER_PAGE = 6
+
+function truncate(value: string, max: number): string {
+  return value.length > max ? value.slice(0, max - 1) + '…' : value
+}
+
+function memoryHtml(trip: Trip, memory: Memory): string {
+  const dayIndex = trip.days.findIndex((d) => d.id === memory.dayId)
+  const url = peekPhoto(memory.photoId)
+  return `
+    <div class="sh-mem">
+      <div class="sh-mem-img">${url ? `<img src="${url}" alt="" />` : ''}</div>
+      ${memory.caption ? `<div class="sh-mem-cap">${esc(truncate(memory.caption, 72))}</div>` : ''}
+      ${dayIndex >= 0 ? `<div class="sh-mem-day">DAY ${dayIndex + 1}・${esc(formatJp(trip.days[dayIndex].date))}</div>` : ''}
+    </div>`
+}
+
+/** 思い出アルバムのページ（写真 6 枚ごとに 1 ページ） */
+function memoriesPages(trip: Trip): HTMLElement[] {
+  const memories = trip.memories ?? []
+  if (memories.length === 0) return []
+
+  const pages: HTMLElement[] = []
+  for (let start = 0; start < memories.length; start += MEMORIES_PER_PAGE) {
+    const slice = memories.slice(start, start + MEMORIES_PER_PAGE)
+    const page = document.createElement('div')
+    page.className = 'sh-page'
+    page.innerHTML = `
+      <div class="sh-plainhead">
+        <div class="sh-eyebrow" style="color:#98a1ae">Memories</div>
+        <div class="sh-h2" style="margin-top:8px">旅の思い出${
+          start > 0 ? '<span style="font-size:15px;font-weight:600;color:#98a1ae"> （つづき）</span>' : ''
+        }</div>
+        <div class="sh-rule"></div>
+        <div class="sh-memgrid">${slice.map((m) => memoryHtml(trip, m)).join('')}</div>
+      </div>
+      <div class="sh-foot"><span>${esc(trip.title)}</span><span class="sh-num sh-pageno"></span></div>`
+    pages.push(page)
+  }
+  return pages
+}
+
 /** しおり全体のページ要素を組み立てて root に流し込む */
 export function buildShioriPages(trip: Trip, root: HTMLElement): HTMLElement[] {
   const pages: HTMLElement[] = []
@@ -399,6 +454,11 @@ export function buildShioriPages(trip: Trip, root: HTMLElement): HTMLElement[] {
   if (summary) {
     root.appendChild(summary)
     pages.push(summary)
+  }
+
+  for (const page of memoriesPages(trip)) {
+    root.appendChild(page)
+    pages.push(page)
   }
 
   pages.forEach((page, i) => {
@@ -528,6 +588,40 @@ export function buildTripPoster(trip: Trip, root: HTMLElement): HTMLElement {
         .join('')}
     </div>
     <div class="sh-poster-foot"><span>made with たびノート</span><span></span></div>`
+  root.appendChild(poster)
+  return poster
+}
+
+/** 思い出アルバムのポスター（PNG 用） */
+export function buildMemoriesPoster(trip: Trip, root: HTMLElement): HTMLElement {
+  const th = theme(trip.theme)
+  const memories = trip.memories ?? []
+  const poster = document.createElement('div')
+  poster.className = 'sh-poster'
+  poster.innerHTML = `
+    <div class="sh-poster-head" style="background:${th.gradient}">
+      <div class="sh-eyebrow" style="font-size:15px">Memories</div>
+      <div style="font-size:52px;font-weight:900;line-height:1.2;margin-top:18px">旅の思い出</div>
+      <div style="font-size:22px;font-weight:700;margin-top:10px;opacity:0.95">${esc(
+        trip.title,
+      )}</div>
+      <div class="sh-num" style="font-size:19px;font-weight:600;margin-top:6px;opacity:0.9">${esc(
+        formatDot(trip.startDate),
+      )} — ${esc(formatDot(trip.endDate))}${
+        trip.destination ? `　◎ ${esc(trip.destination)}` : ''
+      }</div>
+    </div>
+    <div class="sh-poster-body sh-poster-mem">
+      ${
+        memories.length
+          ? memories.map((m) => memoryHtml(trip, m)).join('')
+          : '<div class="sh-empty">まだ写真がありません</div>'
+      }
+    </div>
+    <div class="sh-poster-foot">
+      <span>made with たびノート</span>
+      <span class="sh-num">${memories.length} photos</span>
+    </div>`
   root.appendChild(poster)
   return poster
 }

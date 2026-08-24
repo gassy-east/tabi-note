@@ -1630,8 +1630,10 @@ img {
   background: #f4efe6;
 }
 
-.menu__item span {
+/* ラベル側の span だけを伸ばす（アイコンの span は固定幅のまま） */
+.menu__item > span {
   flex: 1;
+  min-width: 0;
 }
 
 .menu__item small {
@@ -1646,13 +1648,14 @@ img {
   color: var(--danger);
 }
 
-.menu__icon {
+.menu__item > .menu__icon {
   width: 38px;
   height: 38px;
+  min-width: 38px;
   border-radius: 12px;
   display: grid;
   place-items: center;
-  flex: none;
+  flex: 0 0 38px;
   background: #f4efe6;
   color: var(--ink-2);
 }
@@ -1799,4 +1802,371 @@ img {
   top: 0;
   pointer-events: none;
   z-index: -1;
+}
+
+/* ============================================================
+   思い出アルバム
+   ============================================================ */
+.album {
+  margin-top: 10px;
+  padding: 16px 16px 18px;
+}
+
+.album__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 7px;
+  margin-top: 14px;
+}
+
+@media (min-width: 560px) {
+  .album__grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.album__tile {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #f0ebe2;
+  border: 1px solid var(--line-2);
+  animation: pop-in 0.34s var(--ease-spring) both;
+  transition:
+    transform 0.22s var(--ease-spring),
+    box-shadow 0.24s var(--ease);
+}
+
+.album__tile img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.5s var(--ease);
+}
+
+.album__tile:hover {
+  box-shadow: var(--shadow);
+}
+
+.album__tile:hover img {
+  transform: scale(1.06);
+}
+
+.album__tile:active {
+  transform: scale(0.95);
+}
+
+.album__caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 16px 8px 6px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #fff;
+  text-align: left;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.64));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.album__add {
+  aspect-ratio: 1;
+  border-radius: 14px;
+  border: 1.5px dashed var(--line);
+  background: #fffdfa;
+  color: var(--ink-4);
+  display: grid;
+  place-items: center;
+  transition: all 0.2s var(--ease);
+}
+
+.album__add:hover {
+  border-color: var(--coral);
+  color: var(--coral-deep);
+  background: var(--coral-soft);
+}
+
+.album__add.is-busy {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.album__empty {
+  display: block;
+  width: 100%;
+  text-align: center;
+  margin-top: 12px;
+  padding: 26px 18px 24px;
+  border-radius: 18px;
+  border: 1.5px dashed var(--line);
+  background: #fffdfa;
+  transition: all 0.22s var(--ease);
+}
+
+.album__empty:hover {
+  border-color: #e0cdb4;
+  background: #fffaf2;
+}
+
+.album__empty-icon {
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 10px;
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: linear-gradient(135deg, #79c9d8, #3f8fbf);
+  box-shadow: 0 10px 22px rgba(63, 143, 191, 0.28);
+  transform: rotate(-5deg);
+}
+
+.album__empty b {
+  display: block;
+  font-size: 14.5px;
+  font-weight: 800;
+}
+
+.album__empty small {
+  display: block;
+  margin-top: 5px;
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+
+/* ============================================================
+   写真ビューア
+   ============================================================ */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 130;
+  background: rgba(14, 12, 10, 0.95);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  flex-direction: column;
+  animation: fade-in 0.22s var(--ease) both;
+}
+
+.lightbox__bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: calc(env(safe-area-inset-top) + 12px) 16px 8px;
+  color: #fff;
+}
+
+.lightbox__count {
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  opacity: 0.75;
+}
+
+.lightbox__icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.13);
+  transition: background-color 0.2s;
+}
+
+.lightbox__icon:hover {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.lightbox__stage {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  display: grid;
+  place-items: center;
+  padding: 4px 12px;
+}
+
+.lightbox__img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 12px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+  animation: pop-in 0.28s var(--ease) both;
+}
+
+.lightbox__nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.lightbox__nav--prev {
+  left: 6px;
+}
+
+.lightbox__nav--next {
+  right: 6px;
+}
+
+.lightbox__foot {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 12px 16px calc(16px + env(safe-area-inset-bottom));
+  max-width: 560px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.lightbox__input {
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-radius: 12px;
+  padding: 10px 13px;
+  font-size: 14px;
+  transition:
+    border-color 0.2s,
+    background-color 0.2s;
+}
+
+.lightbox__input::placeholder {
+  color: rgba(255, 255, 255, 0.42);
+}
+
+.lightbox__input:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.17);
+}
+
+.lightbox__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.lightbox__select {
+  flex: 1;
+  min-width: 132px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-radius: 999px;
+  padding: 8px 32px 8px 14px;
+  font-size: 12.5px;
+  font-weight: 700;
+  appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M4 7l6 6 6-6'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 9px center;
+}
+
+.lightbox__select option {
+  color: var(--ink);
+  background: #fff;
+}
+
+.lightbox__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 700;
+  transition: background-color 0.2s;
+}
+
+.lightbox__btn:hover {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.lightbox__btn--danger {
+  background: rgba(220, 58, 58, 0.3);
+  color: #ffb9b4;
+}
+
+.lightbox__btn--danger:hover {
+  background: rgba(220, 58, 58, 0.44);
+}
+
+/* ============================================================
+   持ち物テンプレートの編集
+   ============================================================ */
+.tpl {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tpl__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  animation: fade-up 0.3s var(--ease) both;
+}
+
+.tpl__move {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: none;
+}
+
+.tpl__arrow {
+  width: 24px;
+  height: 18px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  color: var(--ink-3);
+  background: #f2ede4;
+  transition: background-color 0.18s;
+}
+
+.tpl__arrow:hover:not(:disabled) {
+  background: #e8e0d2;
+  color: var(--ink);
+}
+
+.tpl__arrow:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.tpl__input {
+  padding: 9px 12px;
+  font-size: 14px;
+}
+
+.menu__item:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+.menu__item:disabled:hover {
+  background: none;
 }

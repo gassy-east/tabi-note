@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react'
 import { Sheet } from './Sheet'
 import { Icon } from './Icon'
 import { CoverPicker } from './PhotoUploader'
+import { PackingTemplateSheet } from './PackingTemplateSheet'
+import { usePackingTemplate } from '../state/settings'
 import { THEMES } from '../lib/catalog'
 import { addDays, nightsBetween, rangeLabel } from '../lib/date'
 import {
@@ -33,6 +35,8 @@ export function TripFormSheet({ trip, onClose, onCreated }: TripFormSheetProps) 
   const [memo, setMemo] = useState(trip?.memo ?? '')
   const [coverId, setCoverId] = useState<string | null>(trip?.coverPhotoId ?? null)
   const [withPacking, setWithPacking] = useState(true)
+  const [templateOpen, setTemplateOpen] = useState(false)
+  const packingTemplate = usePackingTemplate()
 
   const dayCount = nightsBetween(startDate, endDate)
   const losing = trip ? trip.days.slice(dayCount).filter((d) => d.activities.length > 0).length : 0
@@ -82,6 +86,7 @@ export function TripFormSheet({ trip, onClose, onCreated }: TripFormSheetProps) 
   }
 
   return (
+    <>
     <Sheet
       title={isEdit ? '旅の情報を編集' : '新しい旅をつくる'}
       onClose={onClose}
@@ -218,32 +223,49 @@ export function TripFormSheet({ trip, onClose, onCreated }: TripFormSheetProps) 
           />
         </div>
       ) : (
-        <label
-          className="row"
+        <div
           style={{
-            gap: 10,
             padding: '12px 14px',
             borderRadius: 14,
             background: '#fffdfa',
             border: '1.5px solid var(--line)',
             marginBottom: 8,
-            cursor: 'pointer',
           }}
         >
-          <input
-            type="checkbox"
-            checked={withPacking}
-            onChange={(e) => setWithPacking(e.target.checked)}
-            style={{ width: 18, height: 18, accentColor: 'var(--coral)' }}
-          />
-          <span style={{ fontSize: 14, fontWeight: 700 }}>
-            持ち物リストのテンプレートを入れる
-            <small style={{ display: 'block', fontWeight: 500, color: 'var(--ink-4)', fontSize: 12 }}>
-              航空券・充電器・常備薬など 8 項目
-            </small>
-          </span>
-        </label>
+          <label className="row" style={{ gap: 10, cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={withPacking}
+              onChange={(e) => setWithPacking(e.target.checked)}
+              style={{ width: 18, height: 18, accentColor: 'var(--coral)' }}
+            />
+            <span style={{ fontSize: 14, fontWeight: 700 }}>
+              持ち物テンプレートを入れる
+              <small
+                style={{ display: 'block', fontWeight: 500, color: 'var(--ink-4)', fontSize: 12 }}
+              >
+                {packingTemplate.length > 0
+                  ? `${packingTemplate.slice(0, 3).join('・')}${
+                      packingTemplate.length > 3 ? ` ほか ${packingTemplate.length - 3} 項目` : ''
+                    }`
+                  : 'テンプレートは空です'}
+              </small>
+            </span>
+          </label>
+          <button
+            type="button"
+            className="btn btn--soft btn--sm"
+            style={{ marginTop: 10 }}
+            onClick={() => setTemplateOpen(true)}
+          >
+            <Icon name="pencil" size={14} />
+            テンプレートを編集
+          </button>
+        </div>
       )}
+
     </Sheet>
+      {templateOpen ? <PackingTemplateSheet onClose={() => setTemplateOpen(false)} /> : null}
+    </>
   )
 }
