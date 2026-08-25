@@ -155,6 +155,10 @@ export const es: Messages = {
   'tz.hint': 'Escribe las horas en hora local. La hora en casa se muestra al lado.',
   'tz.tripHint':
     'Cuántas horas va por delante (o por detrás) el reloj local respecto al de casa. Puedes cambiarlo en planes concretos, como los vuelos.',
+
+  'tz.hours': 'horas',
+  'tz.minutes': 'minutos',
+  'tz.custom': 'Definir solo para este plan',
   'tz.home': 'en casa',
   'tz.homeTime': 'Hora en casa',
   'tz.prevDay': 'día anterior',

@@ -5,7 +5,8 @@ import { CoverPicker } from './PhotoUploader'
 import { ChecklistTemplateSheet } from './ChecklistTemplateSheet'
 import { useTemplate, type TemplateKind } from '../state/settings'
 import { THEMES, themeLabel } from '../lib/catalog'
-import { addDays, formatOffset, nightsBetween, offsetChoices, rangeLabel } from '../lib/date'
+import { addDays, nightsBetween, rangeLabel } from '../lib/date'
+import { OffsetPicker } from './OffsetPicker'
 import {
   createTrip,
   newTripDefaults,
@@ -252,18 +253,7 @@ export function TripFormSheet({ trip, onClose, onCreated }: TripFormSheetProps) 
           <label className="field__label" htmlFor="trip-tz">
             <Icon name="clock" size={14} /> {t('tz.tripField')}
           </label>
-          <select
-            id="trip-tz"
-            className="select num"
-            value={String(timeDiff)}
-            onChange={(e) => setTimeDiff(Number(e.target.value))}
-          >
-            {offsetChoices().map((v) => (
-              <option key={v} value={v}>
-                {v === 0 ? t('tz.none') : formatOffset(v)}
-              </option>
-            ))}
-          </select>
+          <OffsetPicker id="trip-tz" value={timeDiff} onChange={(v) => setTimeDiff(v ?? 0)} />
           <p className="tiny muted" style={{ marginTop: 6 }}>
             {t('tz.tripHint')}
           </p>

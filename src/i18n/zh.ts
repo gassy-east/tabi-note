@@ -152,6 +152,10 @@ export const zh: Messages = {
   'tz.followTrip': '跟随旅行设置（{v}）',
   'tz.hint': '请按当地时间填写，家里的时间会一并显示。',
   'tz.tripHint': '选择当地时钟比家里快（或慢）多少小时。像航班这样的行程也可以单独设置。',
+
+  'tz.hours': '小时',
+  'tz.minutes': '分',
+  'tz.custom': '只为这个行程单独设置',
   'tz.home': '家里',
   'tz.homeTime': '家里的时间',
   'tz.prevDay': '前一天',

@@ -155,6 +155,10 @@ export const de: Messages = {
   'tz.hint': 'Uhrzeiten bitte in Ortszeit eintragen. Die Zeit zu Hause steht daneben.',
   'tz.tripHint':
     'Wie viele Stunden die Uhr vor Ort der Uhr zu Hause voraus (oder hinterher) ist. Für einzelne Punkte wie Flüge lässt sich das überschreiben.',
+
+  'tz.hours': 'Stunden',
+  'tz.minutes': 'Minuten',
+  'tz.custom': 'Nur für diesen Punkt setzen',
   'tz.home': 'zu Hause',
   'tz.homeTime': 'Zeit zu Hause',
   'tz.prevDay': 'Vortag',

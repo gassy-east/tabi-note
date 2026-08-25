@@ -155,6 +155,10 @@ export const fr: Messages = {
   'tz.hint': 'Saisissez les heures en heure locale. L’heure chez vous s’affiche à côté.',
   'tz.tripHint':
     'De combien d’heures l’horloge locale avance (ou retarde) sur celle de chez vous. Chaque étape peut avoir son propre décalage, pour les vols par exemple.',
+
+  'tz.hours': 'heures',
+  'tz.minutes': 'minutes',
+  'tz.custom': 'Définir pour cette étape',
   'tz.home': 'chez vous',
   'tz.homeTime': 'Heure chez vous',
   'tz.prevDay': 'veille',

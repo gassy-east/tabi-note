@@ -148,10 +148,3 @@ export function formatOffset(hours: number): string {
   const m = Math.round((abs - h) * 60)
   return `${sign}${h}:${String(m).padStart(2, '0')}`
 }
-
-/** 選べる時差の一覧（-12:00 〜 +14:00 を 15 分刻み） */
-export function offsetChoices(): number[] {
-  const out: number[] = []
-  for (let v = -12; v <= 14; v += 0.25) out.push(Number(v.toFixed(2)))
-  return out
-}

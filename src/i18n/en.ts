@@ -153,6 +153,10 @@ export const en: Messages = {
   'tz.hint': 'Enter times in local time. The time back home is shown alongside.',
   'tz.tripHint':
     'How far ahead of (or behind) home the local clock runs. You can override this on individual plans, such as flights.',
+
+  'tz.hours': 'hours',
+  'tz.minutes': 'minutes',
+  'tz.custom': 'Set just for this plan',
   'tz.home': 'home',
   'tz.homeTime': 'Time back home',
   'tz.prevDay': 'prev. day',

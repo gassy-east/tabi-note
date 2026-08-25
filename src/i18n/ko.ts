@@ -153,6 +153,10 @@ export const ko: Messages = {
   'tz.hint': '시각은 현지 시간으로 입력하세요. 집이 있는 곳의 시간도 함께 표시됩니다.',
   'tz.tripHint':
     '현지 시계가 집보다 몇 시간 빠른지(느린지) 고르세요. 비행기처럼 일정별로 다르게 설정할 수도 있어요.',
+
+  'tz.hours': '시간',
+  'tz.minutes': '분',
+  'tz.custom': '이 일정만 따로 지정',
   'tz.home': '집',
   'tz.homeTime': '집이 있는 곳의 시간',
   'tz.prevDay': '전날',

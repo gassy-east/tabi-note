@@ -5,7 +5,8 @@ import { PhotoUploader } from './PhotoUploader'
 import { toast } from './Toast'
 import { CATEGORIES, category, categoryLabel } from '../lib/catalog'
 import { mapSearchUrl } from '../lib/maps'
-import { formatDate, formatOffset, offsetChoices, shiftTime } from '../lib/date'
+import { formatDate, formatOffset, shiftTime } from '../lib/date'
+import { OffsetPicker } from './OffsetPicker'
 import { addActivity, moveActivityToDay, removeActivity, updateActivity } from '../state/store'
 import { useT } from '../i18n'
 import type { Activity, CategoryId, Day } from '../types'
@@ -149,25 +150,16 @@ export function ActivitySheet({
           <label className="field__label" style={{ marginTop: 12 }} htmlFor="act-tz">
             <Icon name="plane" size={14} /> {t('tz.label')}
           </label>
-          <select
+          <OffsetPicker
             id="act-tz"
-            className="select num"
-            value={draft.timeDiff == null ? 'trip' : String(draft.timeDiff)}
-            onChange={(e) =>
-              patch({ timeDiff: e.target.value === 'trip' ? null : Number(e.target.value) })
-            }
-          >
-            <option value="trip">
-              {t('tz.followTrip', {
+            value={draft.timeDiff}
+            onChange={(v) => patch({ timeDiff: v })}
+            inherit={{
+              label: t('tz.followTrip', {
                 v: tripTimeDiff === 0 ? t('tz.none') : formatOffset(tripTimeDiff),
-              })}
-            </option>
-            {offsetChoices().map((v) => (
-              <option key={v} value={v}>
-                {v === 0 ? t('tz.none') : formatOffset(v)}
-              </option>
-            ))}
-          </select>
+              }),
+            }}
+          />
           <p className="tiny muted" style={{ marginTop: 6 }}>
             {effectiveDiff ? t('tz.hint') : t('tz.tripHint')}
           </p>

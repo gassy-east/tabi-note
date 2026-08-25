@@ -159,6 +159,10 @@ export const ja = {
   'tz.followTrip': '旅の設定にしたがう（{v}）',
   'tz.hint': '時刻は現地時間で入れてください。自宅の時間もいっしょに表示されます。',
   'tz.tripHint': '現地の時計が自宅より何時間進んでいる（遅れている）かを選びます。飛行機など、予定ごとに変えることもできます。',
+
+  'tz.hours': '時間',
+  'tz.minutes': '分',
+  'tz.custom': 'この予定だけ変える',
   'tz.home': '自宅',
   'tz.homeTime': '自宅の時間',
   'tz.prevDay': '前日',
