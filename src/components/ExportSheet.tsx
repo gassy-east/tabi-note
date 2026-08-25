@@ -117,7 +117,7 @@ export function ExportSheet({ trip, dayIndex, onClose }: ExportSheetProps) {
               disabled={busy !== null}
               onClick={() => void run(t('export.makingAlbum'), () => exportMemoriesPng(trip))}
             >
-              <span className="menu__icon" style={{ background: '#e3f1f7', color: '#2f7fa8' }}>
+              <span className="menu__icon" style={{ background: 'var(--sky-soft)', color: 'var(--sky)' }}>
                 <Icon name="camera" size={19} />
               </span>
               <span>
@@ -133,7 +133,7 @@ export function ExportSheet({ trip, dayIndex, onClose }: ExportSheetProps) {
             disabled={busy !== null}
             onClick={() => void run(t('export.makingImage'), () => exportCoverPng(trip))}
           >
-            <span className="menu__icon" style={{ background: 'var(--gold-soft)', color: '#b8801a' }}>
+            <span className="menu__icon" style={{ background: 'var(--gold-soft)', color: 'var(--gold-ink)' }}>
               <Icon name="sparkle" size={19} />
             </span>
             <span>

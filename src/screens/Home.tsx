@@ -3,6 +3,7 @@ import { Icon } from '../components/Icon'
 import { TripFormSheet } from '../components/TripFormSheet'
 import { SettingsSheet } from '../components/SettingsSheet'
 import { LanguageSheet } from '../components/LanguageSheet'
+import { AppearanceSheet } from '../components/AppearanceSheet'
 import { useStore } from '../state/store'
 import { usePhoto } from '../state/photos'
 import { theme } from '../lib/catalog'
@@ -86,6 +87,7 @@ export function Home() {
   const [creating, setCreating] = useState(false)
   const [settings, setSettings] = useState(false)
   const [language, setLanguage] = useState(false)
+  const [appearance, setAppearance] = useState(false)
   const scrolled = useScrolled()
 
   const { upcoming, past } = useMemo(() => {
@@ -110,6 +112,9 @@ export function Home() {
         <button className="langbtn" onClick={() => setLanguage(true)} aria-label={t('lang.aria')}>
           <Icon name="compass" size={15} strokeWidth={2.2} />
           {lang.toUpperCase()}
+        </button>
+        <button className="iconbtn" onClick={() => setAppearance(true)} aria-label={t('skin.aria')}>
+          <Icon name="sparkle" size={18} />
         </button>
         <button className="iconbtn" onClick={() => setSettings(true)} aria-label={t('common.settings')}>
           <Icon name="dots" size={19} />
@@ -207,6 +212,7 @@ export function Home() {
       ) : null}
       {settings ? <SettingsSheet onClose={() => setSettings(false)} /> : null}
       {language ? <LanguageSheet onClose={() => setLanguage(false)} /> : null}
+      {appearance ? <AppearanceSheet onClose={() => setAppearance(false)} /> : null}
     </>
   )
 }

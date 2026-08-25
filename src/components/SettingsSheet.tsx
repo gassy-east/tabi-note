@@ -6,9 +6,11 @@ import { useStore } from '../state/store'
 import { useTemplate, type TemplateKind } from '../state/settings'
 import { ChecklistTemplateSheet } from './ChecklistTemplateSheet'
 import { LanguageSheet } from './LanguageSheet'
+import { AppearanceSheet } from './AppearanceSheet'
+import { getSkin, useSkin } from '../state/appearance'
 import { exportBackup, importBackup } from '../lib/backup'
 import { estimateUsage } from '../lib/db'
-import { LANGS, getLang, useT } from '../i18n'
+import { LANGS, getLang, useT, type MessageKey } from '../i18n'
 
 function formatBytes(n: number): string {
   if (n < 1024) return `${n} B`
@@ -24,9 +26,12 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
   const [busy, setBusy] = useState(false)
   const [template, setTemplate] = useState<TemplateKind | null>(null)
   const [language, setLanguage] = useState(false)
+  const [appearance, setAppearance] = useState(false)
   const packingTemplate = useTemplate('packing')
   const todoTemplate = useTemplate('todo')
   const langLabel = LANGS.find((l) => l.id === getLang())?.label ?? ''
+  useSkin()
+  const skinLabel = t(`skin.${getSkin()}` as MessageKey)
 
   useEffect(() => {
     void estimateUsage().then(setUsage)
@@ -67,12 +72,25 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
       <Sheet title={t('settings.title')} onClose={onClose}>
         <div className="menu" style={{ padding: 0, marginBottom: 18 }}>
           <button className="menu__item" onClick={() => setLanguage(true)}>
-            <span className="menu__icon" style={{ background: '#e3f1f7', color: '#2f7fa8' }}>
+            <span className="menu__icon" style={{ background: 'var(--sky-soft)', color: 'var(--sky)' }}>
               <Icon name="compass" size={19} />
             </span>
             <span>
               {t('common.language')}
               <small>{langLabel}</small>
+            </span>
+            <Icon name="right" size={17} />
+          </button>
+          <button className="menu__item" onClick={() => setAppearance(true)}>
+            <span
+              className="menu__icon"
+              style={{ background: 'var(--coral-soft)', color: 'var(--coral-deep)' }}
+            >
+              <Icon name="sparkle" size={19} />
+            </span>
+            <span>
+              {t('settings.appearance')}
+              <small>{skinLabel}</small>
             </span>
             <Icon name="right" size={17} />
           </button>
@@ -109,7 +127,7 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
             padding: '14px 16px',
             borderRadius: 16,
             background: 'var(--gold-soft)',
-            border: '1px solid #f2e0b8',
+            border: '1px solid var(--gold-line)',
             marginBottom: 18,
           }}
         >
@@ -181,6 +199,7 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
         <ChecklistTemplateSheet kind={template} onClose={() => setTemplate(null)} />
       ) : null}
       {language ? <LanguageSheet onClose={() => setLanguage(false)} /> : null}
+      {appearance ? <AppearanceSheet onClose={() => setAppearance(false)} /> : null}
     </>
   )
 }

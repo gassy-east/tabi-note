@@ -51,7 +51,7 @@ function TemplateToggle({
       style={{
         padding: '12px 14px',
         borderRadius: 14,
-        background: '#fffdfa',
+        background: 'var(--field)',
         border: '1.5px solid var(--line)',
       }}
     >
