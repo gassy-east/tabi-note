@@ -2,8 +2,8 @@ import { useMemo, useState } from 'react'
 import { Sheet } from './Sheet'
 import { Icon } from './Icon'
 import { CoverPicker } from './PhotoUploader'
-import { PackingTemplateSheet } from './PackingTemplateSheet'
-import { usePackingTemplate } from '../state/settings'
+import { ChecklistTemplateSheet } from './ChecklistTemplateSheet'
+import { useTemplate, type TemplateKind } from '../state/settings'
 import { THEMES } from '../lib/catalog'
 import { addDays, nightsBetween, rangeLabel } from '../lib/date'
 import {
@@ -15,6 +15,57 @@ import {
 } from '../state/store'
 import type { ThemeId, Trip } from '../types'
 import { toast } from './Toast'
+
+interface TemplateToggleProps {
+  label: string
+  items: string[]
+  checked: boolean
+  onChange: (value: boolean) => void
+  onEdit: () => void
+}
+
+function TemplateToggle({ label, items, checked, onChange, onEdit }: TemplateToggleProps) {
+  return (
+    <div
+      style={{
+        padding: '12px 14px',
+        borderRadius: 14,
+        background: '#fffdfa',
+        border: '1.5px solid var(--line)',
+      }}
+    >
+      <div className="row" style={{ gap: 10, alignItems: 'flex-start' }}>
+        <label className="row" style={{ gap: 10, cursor: 'pointer', flex: 1, minWidth: 0 }}>
+          <input
+            type="checkbox"
+            checked={checked}
+            onChange={(e) => onChange(e.target.checked)}
+            style={{ width: 18, height: 18, accentColor: 'var(--coral)', flex: 'none' }}
+          />
+          <span style={{ fontSize: 14, fontWeight: 700 }}>
+            {label}
+            <small style={{ display: 'block', fontWeight: 500, color: 'var(--ink-4)', fontSize: 12 }}>
+              {items.length > 0
+                ? `${items.slice(0, 2).join('・')}${
+                    items.length > 2 ? ` ほか ${items.length - 2} 項目` : ''
+                  }`
+                : 'テンプレートは空です'}
+            </small>
+          </span>
+        </label>
+        <button
+          type="button"
+          className="iconbtn iconbtn--plain"
+          style={{ width: 34, height: 34 }}
+          onClick={onEdit}
+          aria-label={`${label}を編集`}
+        >
+          <Icon name="pencil" size={16} />
+        </button>
+      </div>
+    </div>
+  )
+}
 
 interface TripFormSheetProps {
   trip?: Trip
@@ -35,8 +86,10 @@ export function TripFormSheet({ trip, onClose, onCreated }: TripFormSheetProps) 
   const [memo, setMemo] = useState(trip?.memo ?? '')
   const [coverId, setCoverId] = useState<string | null>(trip?.coverPhotoId ?? null)
   const [withPacking, setWithPacking] = useState(true)
-  const [templateOpen, setTemplateOpen] = useState(false)
-  const packingTemplate = usePackingTemplate()
+  const [withTodos, setWithTodos] = useState(true)
+  const [templateOpen, setTemplateOpen] = useState<TemplateKind | null>(null)
+  const packingTemplate = useTemplate('packing')
+  const todoTemplate = useTemplate('todo')
 
   const dayCount = nightsBetween(startDate, endDate)
   const losing = trip ? trip.days.slice(dayCount).filter((d) => d.activities.length > 0).length : 0
@@ -76,6 +129,7 @@ export function TripFormSheet({ trip, onClose, onCreated }: TripFormSheetProps) 
         endDate,
         theme: themeId,
         members: memberList,
+        withTodoTemplate: withTodos,
         withPackingTemplate: withPacking,
       })
       if (coverId) setCoverPhoto(id, coverId)
@@ -223,49 +277,28 @@ export function TripFormSheet({ trip, onClose, onCreated }: TripFormSheetProps) 
           />
         </div>
       ) : (
-        <div
-          style={{
-            padding: '12px 14px',
-            borderRadius: 14,
-            background: '#fffdfa',
-            border: '1.5px solid var(--line)',
-            marginBottom: 8,
-          }}
-        >
-          <label className="row" style={{ gap: 10, cursor: 'pointer' }}>
-            <input
-              type="checkbox"
-              checked={withPacking}
-              onChange={(e) => setWithPacking(e.target.checked)}
-              style={{ width: 18, height: 18, accentColor: 'var(--coral)' }}
-            />
-            <span style={{ fontSize: 14, fontWeight: 700 }}>
-              持ち物テンプレートを入れる
-              <small
-                style={{ display: 'block', fontWeight: 500, color: 'var(--ink-4)', fontSize: 12 }}
-              >
-                {packingTemplate.length > 0
-                  ? `${packingTemplate.slice(0, 3).join('・')}${
-                      packingTemplate.length > 3 ? ` ほか ${packingTemplate.length - 3} 項目` : ''
-                    }`
-                  : 'テンプレートは空です'}
-              </small>
-            </span>
-          </label>
-          <button
-            type="button"
-            className="btn btn--soft btn--sm"
-            style={{ marginTop: 10 }}
-            onClick={() => setTemplateOpen(true)}
-          >
-            <Icon name="pencil" size={14} />
-            テンプレートを編集
-          </button>
+        <div className="stack" style={{ gap: 10, marginBottom: 8 }}>
+          <TemplateToggle
+            label="やることテンプレートを入れる"
+            items={todoTemplate}
+            checked={withTodos}
+            onChange={setWithTodos}
+            onEdit={() => setTemplateOpen('todo')}
+          />
+          <TemplateToggle
+            label="持ち物テンプレートを入れる"
+            items={packingTemplate}
+            checked={withPacking}
+            onChange={setWithPacking}
+            onEdit={() => setTemplateOpen('packing')}
+          />
         </div>
       )}
 
     </Sheet>
-      {templateOpen ? <PackingTemplateSheet onClose={() => setTemplateOpen(false)} /> : null}
+      {templateOpen ? (
+        <ChecklistTemplateSheet kind={templateOpen} onClose={() => setTemplateOpen(null)} />
+      ) : null}
     </>
   )
 }

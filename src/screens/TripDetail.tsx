@@ -24,23 +24,18 @@ import { ActivitySheet } from '../components/ActivitySheet'
 import { DaySheet } from '../components/DaySheet'
 import { ExportSheet } from '../components/ExportSheet'
 import { TripFormSheet } from '../components/TripFormSheet'
-import { PackingTemplateSheet } from '../components/PackingTemplateSheet'
+import { PackingCard, TodoCard } from '../components/ChecklistCards'
+import { DiaryCard } from '../components/DiaryCard'
 import { MemoryAlbum } from '../components/MemoryAlbum'
 import { Lightbox } from '../components/Lightbox'
 import { toast } from '../components/Toast'
 import { usePhoto } from '../state/photos'
-import { setPackingTemplate, usePackingTemplate } from '../state/settings'
 import {
-  addPackItem,
-  applyPackingTemplate,
   deleteTrip,
   duplicateTrip,
   emptyActivity,
-  removePackItem,
   reorderActivities,
-  replacePacking,
   sortActivitiesByTime,
-  togglePackItem,
   useTrip,
 } from '../state/store'
 import { category, theme } from '../lib/catalog'
@@ -49,7 +44,7 @@ import { mapDirectionsUrl, mapSearchUrl } from '../lib/maps'
 import { useScrolled } from '../lib/hooks'
 import { clsx, yen } from '../lib/util'
 import { goHome, navigate } from '../App'
-import type { Activity, Day, Trip } from '../types'
+import type { Activity, Day } from '../types'
 
 /* ---------------------------------------------------------------- 写真 */
 
@@ -174,173 +169,6 @@ function ActivityRow({ activity, onEdit, onPhotoOpen }: ActivityRowProps) {
         ) : null}
       </div>
     </div>
-  )
-}
-
-/* ------------------------------------------------------------ 持ち物 */
-
-function PackingCard({ trip }: { trip: Trip }) {
-  const [input, setInput] = useState('')
-  const [menu, setMenu] = useState(false)
-  const [template, setTemplate] = useState(false)
-  const packingTemplate = usePackingTemplate()
-  const done = trip.packing.filter((p) => p.done).length
-  const rate = trip.packing.length ? Math.round((done / trip.packing.length) * 100) : 0
-
-  return (
-    <section className="card pack">
-      <div className="row" style={{ justifyContent: 'space-between' }}>
-        <h3 className="section-title" style={{ fontSize: 15 }}>
-          <Icon name="suitcase" size={17} />
-          持ち物リスト
-        </h3>
-        <div className="row" style={{ gap: 4 }}>
-          <span className="tiny muted num">
-            {done} / {trip.packing.length}
-          </span>
-          <button
-            className="iconbtn iconbtn--plain"
-            style={{ width: 32, height: 32 }}
-            onClick={() => setMenu(true)}
-            aria-label="持ち物リストの操作"
-          >
-            <Icon name="dots" size={17} />
-          </button>
-        </div>
-      </div>
-      <div className="pack__bar">
-        <i style={{ width: `${rate}%` }} />
-      </div>
-
-      {trip.packing.map((item) => (
-        <div className="pack__item" key={item.id}>
-          <button
-            className={clsx('pack__check', item.done && 'is-on')}
-            onClick={() => togglePackItem(trip.id, item.id)}
-            aria-label={item.done ? '未チェックに戻す' : 'チェックする'}
-          >
-            <Icon name="check" size={14} strokeWidth={3} />
-          </button>
-          <span className={clsx('pack__label', item.done && 'is-done')}>{item.label}</span>
-          <button
-            className="iconbtn iconbtn--plain iconbtn--danger"
-            style={{ width: 30, height: 30 }}
-            onClick={() => removePackItem(trip.id, item.id)}
-            aria-label="削除"
-          >
-            <Icon name="close" size={14} strokeWidth={2.2} />
-          </button>
-        </div>
-      ))}
-
-      <form
-        className="row"
-        style={{ gap: 8, padding: '12px 0 8px' }}
-        onSubmit={(e) => {
-          e.preventDefault()
-          addPackItem(trip.id, input)
-          setInput('')
-        }}
-      >
-        <input
-          className="input"
-          style={{ padding: '9px 12px', fontSize: 14 }}
-          value={input}
-          placeholder="持ち物を追加"
-          onChange={(e) => setInput(e.target.value)}
-        />
-        <button className="btn btn--soft btn--sm" type="submit" disabled={!input.trim()}>
-          <Icon name="plus" size={15} strokeWidth={2.6} />
-          追加
-        </button>
-      </form>
-
-      {menu ? (
-        <Sheet title="持ち物リスト" onClose={() => setMenu(false)}>
-          <div className="menu" style={{ padding: 0 }}>
-            <button
-              className="menu__item"
-              disabled={packingTemplate.length === 0}
-              onClick={() => {
-                const added = applyPackingTemplate(trip.id, packingTemplate)
-                setMenu(false)
-                toast(
-                  added > 0 ? `テンプレートから${added}項目を追加しました` : '追加する項目はありませんでした',
-                  added > 0 ? 'success' : 'info',
-                )
-              }}
-            >
-              <span className="menu__icon">
-                <Icon name="download" size={18} />
-              </span>
-              <span>
-                テンプレートから読み込む
-                <small>まだ無い項目だけを足します（{packingTemplate.length} 項目）</small>
-              </span>
-            </button>
-            <button
-              className="menu__item"
-              disabled={trip.packing.length === 0}
-              onClick={() => {
-                setPackingTemplate(trip.packing.map((p) => p.label))
-                setMenu(false)
-                toast('このリストをテンプレートに保存しました')
-              }}
-            >
-              <span className="menu__icon">
-                <Icon name="upload" size={18} />
-              </span>
-              <span>
-                このリストをテンプレートに保存
-                <small>次の旅から、この内容が初期値になります</small>
-              </span>
-            </button>
-            <button
-              className="menu__item"
-              onClick={() => {
-                setMenu(false)
-                setTemplate(true)
-              }}
-            >
-              <span className="menu__icon">
-                <Icon name="pencil" size={18} />
-              </span>
-              <span>
-                テンプレートを編集
-                <small>並び順や項目名を整える</small>
-              </span>
-            </button>
-            <button
-              className="menu__item"
-              disabled={done === 0}
-              onClick={() => {
-                replacePacking(
-                  trip.id,
-                  trip.packing.map((p) => ({ ...p, done: false })),
-                )
-                setMenu(false)
-                toast('チェックをすべて外しました')
-              }}
-            >
-              <span className="menu__icon">
-                <Icon name="check" size={18} />
-              </span>
-              <span>
-                チェックを全部外す
-                <small>帰りの荷造りにも使えます</small>
-              </span>
-            </button>
-          </div>
-        </Sheet>
-      ) : null}
-
-      {template ? (
-        <PackingTemplateSheet
-          onClose={() => setTemplate(false)}
-          fromTrip={{ title: trip.title, labels: trip.packing.map((p) => p.label) }}
-        />
-      ) : null}
-    </section>
   )
 }
 
@@ -642,7 +470,21 @@ export function TripDetail({ tripId }: { tripId: string }) {
           </>
         ) : null}
 
-        <div style={{ marginTop: 30 }}>
+        {day ? (
+          <div style={{ marginTop: 24 }}>
+            <DiaryCard trip={trip} day={day} index={safeIndex} />
+          </div>
+        ) : null}
+
+        <h2 className="section-title" style={{ margin: '34px 0 12px' }}>
+          <Icon name="suitcase" size={17} />
+          旅の準備と、記録
+          <i className="section-title__line" />
+        </h2>
+
+        <TodoCard trip={trip} />
+
+        <div style={{ marginTop: 16 }}>
           <PackingCard trip={trip} />
         </div>
 

@@ -81,6 +81,17 @@ export function theme(id: ThemeId): ThemeDef {
   return THEME_MAP.get(id) ?? THEMES[0]
 }
 
+/** 新しい旅を作るときの「やること」テンプレート */
+export const DEFAULT_TODOS = [
+  '交通手段を予約する',
+  '宿を予約する',
+  '行きたいお店を調べて予約する',
+  '現地の天気と服装を確認する',
+  '現金・カードの準備をする',
+  '身分証・チケットの期限を確認する',
+  '家の戸締まりと郵便の手配',
+]
+
 /** 新しい旅を作るときのテンプレート持ち物リスト */
 export const DEFAULT_PACKING = [
   '航空券 / 乗車券',

@@ -1,9 +1,18 @@
 import { useSyncExternalStore } from 'react'
-import type { Activity, CategoryId, Day, Memory, PackItem, ThemeId, Trip } from '../types'
+import type {
+  Activity,
+  CategoryId,
+  Day,
+  Memory,
+  PackItem,
+  ThemeId,
+  TodoItem,
+  Trip,
+} from '../types'
 import { photosDb, tripsDb } from '../lib/db'
 import { addDays, nightsBetween, todayIso } from '../lib/date'
 import { moveItem, uid } from '../lib/util'
-import { getPackingTemplate } from './settings'
+import { getTemplate } from './settings'
 
 interface StoreState {
   loaded: boolean
@@ -50,10 +59,15 @@ function sortTrips(trips: Trip[]): Trip[] {
 export function normalizeTrip(trip: Trip): Trip {
   return {
     ...trip,
+    todos: trip.todos ?? [],
     packing: trip.packing ?? [],
     memories: trip.memories ?? [],
     members: trip.members ?? [],
-    days: (trip.days ?? []).map((d) => ({ ...d, activities: d.activities ?? [] })),
+    days: (trip.days ?? []).map((d) => ({
+      ...d,
+      diary: d.diary ?? '',
+      activities: d.activities ?? [],
+    })),
   }
 }
 
@@ -91,11 +105,12 @@ export interface NewTripInput {
   endDate: string
   theme: ThemeId
   members: string[]
+  withTodoTemplate: boolean
   withPackingTemplate: boolean
 }
 
 function emptyDay(date: string): Day {
-  return { id: uid('day_'), date, title: '', memo: '', activities: [] }
+  return { id: uid('day_'), date, title: '', memo: '', diary: '', activities: [] }
 }
 
 export function createTrip(input: NewTripInput): string {
@@ -112,8 +127,11 @@ export function createTrip(input: NewTripInput): string {
     members: input.members,
     memo: '',
     days: Array.from({ length: count }, (_, i) => emptyDay(addDays(input.startDate, i))),
+    todos: input.withTodoTemplate
+      ? getTemplate('todo').map((label) => ({ id: uid('td_'), label, done: false, due: '' }))
+      : [],
     packing: input.withPackingTemplate
-      ? getPackingTemplate().map((label) => ({ id: uid('pk_'), label, done: false }))
+      ? getTemplate('packing').map((label) => ({ id: uid('pk_'), label, done: false }))
       : [],
     memories: [],
     createdAt: now,
@@ -138,8 +156,11 @@ export function duplicateTrip(id: string): string | null {
   copy.days = copy.days.map((d) => ({
     ...d,
     id: uid('day_'),
+    // 日記はその旅そのものの記録なので引き継がない
+    diary: '',
     activities: d.activities.map((a) => ({ ...a, id: uid('act_') })),
   }))
+  copy.todos = copy.todos.map((t) => ({ ...t, id: uid('td_'), done: false, due: '' }))
   copy.packing = copy.packing.map((p) => ({ ...p, id: uid('pk_'), done: false }))
   // 思い出は「その旅で起きたこと」なので複製先には引き継がない
   copy.memories = []
@@ -207,7 +228,7 @@ export function setCoverPhoto(id: string, photoId: string | null): void {
 export function updateDay(
   tripId: string,
   dayId: string,
-  patch: Partial<Pick<Day, 'title' | 'memo'>>,
+  patch: Partial<Pick<Day, 'title' | 'memo' | 'diary'>>,
 ): void {
   updateTrip(tripId, (trip) => ({
     ...trip,
@@ -318,6 +339,57 @@ export function sortActivitiesByTime(tripId: string, dayId: string): void {
   }))
 }
 
+// ---------- 旅までにやること ----------
+
+export function addTodo(tripId: string, label: string, due = ''): void {
+  const trimmed = label.trim()
+  if (!trimmed) return
+  updateTrip(tripId, (trip) => ({
+    ...trip,
+    todos: [...trip.todos, { id: uid('td_'), label: trimmed, done: false, due }],
+  }))
+}
+
+export function toggleTodo(tripId: string, itemId: string): void {
+  updateTrip(tripId, (trip) => ({
+    ...trip,
+    todos: trip.todos.map((t) => (t.id === itemId ? { ...t, done: !t.done } : t)),
+  }))
+}
+
+export function updateTodo(tripId: string, item: TodoItem): void {
+  updateTrip(tripId, (trip) => ({
+    ...trip,
+    todos: trip.todos.map((t) => (t.id === item.id ? item : t)),
+  }))
+}
+
+export function removeTodo(tripId: string, itemId: string): void {
+  updateTrip(tripId, (trip) => ({ ...trip, todos: trip.todos.filter((t) => t.id !== itemId) }))
+}
+
+export function replaceTodos(tripId: string, items: TodoItem[]): void {
+  updateTrip(tripId, (trip) => ({ ...trip, todos: items }))
+}
+
+/** テンプレートの項目を、まだ無いものだけ追加する */
+export function applyTodoTemplate(tripId: string, labels: string[]): number {
+  let added = 0
+  updateTrip(tripId, (trip) => {
+    const existing = new Set(trip.todos.map((t) => t.label))
+    const fresh = labels.filter((l) => !existing.has(l))
+    added = fresh.length
+    return {
+      ...trip,
+      todos: [
+        ...trip.todos,
+        ...fresh.map((label) => ({ id: uid('td_'), label, done: false, due: '' })),
+      ],
+    }
+  })
+  return added
+}
+
 // ---------- 持ち物 ----------
 
 export function addPackItem(tripId: string, label: string): void {
@@ -361,7 +433,7 @@ export function applyPackingTemplate(tripId: string, labels: string[]): number {
 
 // ---------- 思い出アルバム ----------
 
-export function addMemories(tripId: string, photoIds: string[]): void {
+export function addMemories(tripId: string, photoIds: string[], dayId = ''): void {
   if (photoIds.length === 0) return
   const now = Date.now()
   updateTrip(tripId, (trip) => ({
@@ -372,7 +444,7 @@ export function addMemories(tripId: string, photoIds: string[]): void {
         id: uid('mm_'),
         photoId,
         caption: '',
-        dayId: '',
+        dayId,
         createdAt: now + i,
       })),
     ],
@@ -420,6 +492,7 @@ export function newTripDefaults(): NewTripInput {
     endDate: addDays(start, 2),
     theme: 'sunset',
     members: [],
+    withTodoTemplate: true,
     withPackingTemplate: true,
   }
 }

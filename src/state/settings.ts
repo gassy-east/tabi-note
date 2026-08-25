@@ -1,23 +1,36 @@
 import { useSyncExternalStore } from 'react'
-import { DEFAULT_PACKING } from '../lib/catalog'
+import { DEFAULT_PACKING, DEFAULT_TODOS } from '../lib/catalog'
 
-const KEY = 'tabinote.packingTemplate'
+export type TemplateKind = 'packing' | 'todo'
+
+const STORAGE_KEY: Record<TemplateKind, string> = {
+  packing: 'tabinote.packingTemplate',
+  todo: 'tabinote.todoTemplate',
+}
+
+const FACTORY: Record<TemplateKind, string[]> = {
+  packing: DEFAULT_PACKING,
+  todo: DEFAULT_TODOS,
+}
 
 const listeners = new Set<() => void>()
 
-function read(): string[] {
+function read(kind: TemplateKind): string[] {
   try {
-    const raw = localStorage.getItem(KEY)
-    if (!raw) return DEFAULT_PACKING.slice()
+    const raw = localStorage.getItem(STORAGE_KEY[kind])
+    if (!raw) return FACTORY[kind].slice()
     const parsed: unknown = JSON.parse(raw)
-    if (!Array.isArray(parsed)) return DEFAULT_PACKING.slice()
+    if (!Array.isArray(parsed)) return FACTORY[kind].slice()
     return parsed.filter((v): v is string => typeof v === 'string')
   } catch {
-    return DEFAULT_PACKING.slice()
+    return FACTORY[kind].slice()
   }
 }
 
-let template: string[] = read()
+const templates: Record<TemplateKind, string[]> = {
+  packing: read('packing'),
+  todo: read('todo'),
+}
 
 function emit() {
   listeners.forEach((l) => l())
@@ -30,33 +43,41 @@ function subscribe(listener: () => void) {
   }
 }
 
-export function getPackingTemplate(): string[] {
-  return template
+export function getTemplate(kind: TemplateKind): string[] {
+  return templates[kind]
 }
 
-/** 持ち物テンプレート（新しい旅を作るときの初期リスト） */
-export function usePackingTemplate(): string[] {
-  return useSyncExternalStore(subscribe, getPackingTemplate, getPackingTemplate)
+/** テンプレート（新しい旅を作るときの初期リスト）を購読する */
+export function useTemplate(kind: TemplateKind): string[] {
+  return useSyncExternalStore(
+    subscribe,
+    () => templates[kind],
+    () => templates[kind],
+  )
 }
 
-export function setPackingTemplate(items: string[]): void {
+export function setTemplate(kind: TemplateKind, items: string[]): void {
   const cleaned = items.map((s) => s.trim()).filter(Boolean)
-  template = cleaned
+  templates[kind] = cleaned
   try {
-    localStorage.setItem(KEY, JSON.stringify(cleaned))
+    localStorage.setItem(STORAGE_KEY[kind], JSON.stringify(cleaned))
   } catch {
     /* 保存できなくても、その場の編集内容は反映する */
   }
   emit()
 }
 
-export function resetPackingTemplate(): void {
-  setPackingTemplate(DEFAULT_PACKING.slice())
+export function factoryTemplate(kind: TemplateKind): string[] {
+  return FACTORY[kind].slice()
 }
 
-export function isFactoryPackingTemplate(): boolean {
-  return (
-    template.length === DEFAULT_PACKING.length &&
-    template.every((v, i) => v === DEFAULT_PACKING[i])
-  )
+export function resetTemplate(kind: TemplateKind): void {
+  setTemplate(kind, factoryTemplate(kind))
+}
+
+/** この端末でまだ編集されていないか */
+export function isFactoryTemplate(kind: TemplateKind): boolean {
+  const current = templates[kind]
+  const factory = FACTORY[kind]
+  return current.length === factory.length && current.every((v, i) => v === factory[i])
 }

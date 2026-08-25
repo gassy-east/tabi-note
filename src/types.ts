@@ -30,7 +30,10 @@ export interface Day {
   /** yyyy-mm-dd。旅程の開始日からの自動計算値を保持する */
   date: string
   title: string
+  /** 出発前に書く下調べメモ */
   memo: string
+  /** 旅のあとに書く、その日の日記 */
+  diary: string
   activities: Activity[]
 }
 
@@ -38,6 +41,15 @@ export interface PackItem {
   id: string
   label: string
   done: boolean
+}
+
+/** 出発までに済ませておくこと */
+export interface TodoItem {
+  id: string
+  label: string
+  done: boolean
+  /** yyyy-mm-dd。空なら期限なし */
+  due: string
 }
 
 /** 旅先で撮った写真。行程とは別に「思い出アルバム」として持つ */
@@ -61,6 +73,7 @@ export interface Trip {
   members: string[]
   memo: string
   days: Day[]
+  todos: TodoItem[]
   packing: PackItem[]
   memories: Memory[]
   createdAt: number

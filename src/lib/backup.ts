@@ -1,15 +1,11 @@
 import type { PhotoRecord, Trip } from '../types'
 import { photosDb } from './db'
 import { collectPhotoIds, importTrips } from '../state/store'
-import {
-  getPackingTemplate,
-  isFactoryPackingTemplate,
-  setPackingTemplate,
-} from '../state/settings'
+import { getTemplate, isFactoryTemplate, setTemplate } from '../state/settings'
 import { downloadBlob } from './image'
 
 const FORMAT = 'tabinote-backup'
-const VERSION = 2
+const VERSION = 3
 
 interface BackupFile {
   format: string
@@ -18,6 +14,7 @@ interface BackupFile {
   trips: Trip[]
   photos: PhotoRecord[]
   packingTemplate?: string[]
+  todoTemplate?: string[]
 }
 
 export async function exportBackup(trips: Trip[]): Promise<void> {
@@ -36,7 +33,8 @@ export async function exportBackup(trips: Trip[]): Promise<void> {
     exportedAt: new Date().toISOString(),
     trips,
     photos,
-    packingTemplate: getPackingTemplate(),
+    packingTemplate: getTemplate('packing'),
+    todoTemplate: getTemplate('todo'),
   }
   const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' })
   const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, '')
@@ -59,9 +57,12 @@ export async function importBackup(file: File): Promise<number> {
     }
   }
 
-  // 持ち物テンプレートは、この端末でまだ手を加えていないときだけ復元する
-  if (Array.isArray(data.packingTemplate) && isFactoryPackingTemplate()) {
-    setPackingTemplate(data.packingTemplate)
+  // テンプレートは、この端末でまだ手を加えていないときだけ復元する
+  if (Array.isArray(data.packingTemplate) && isFactoryTemplate('packing')) {
+    setTemplate('packing', data.packingTemplate)
+  }
+  if (Array.isArray(data.todoTemplate) && isFactoryTemplate('todo')) {
+    setTemplate('todo', data.todoTemplate)
   }
 
   return importTrips(data.trips)

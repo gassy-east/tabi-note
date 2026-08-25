@@ -2170,3 +2170,191 @@ img {
 .menu__item:disabled:hover {
   background: none;
 }
+
+.tpl__arrow--up svg {
+  transform: rotate(180deg);
+}
+
+/* ============================================================
+   旅までにやること
+   ============================================================ */
+.pack__bar--todo i {
+  background: linear-gradient(90deg, #7fb4ff, #4b5bd6);
+}
+
+.todo__note {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-3);
+  background: #f6f2ea;
+  border-radius: 10px;
+  padding: 7px 11px;
+  margin-bottom: 10px;
+}
+
+.todo__note.is-warn {
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.todo__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  text-align: left;
+  padding: 2px 0;
+  border-radius: 8px;
+}
+
+.todo__text:hover .pack__label {
+  color: var(--coral-deep);
+}
+
+.todo__due {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  padding: 2px 9px 2px 7px;
+  border-radius: 999px;
+  background: #f0ece3;
+  color: var(--ink-3);
+}
+
+.todo__due--over {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.todo__due--soon {
+  background: var(--gold-soft);
+  color: #a8760f;
+}
+
+.todo__due--later {
+  background: var(--indigo-soft);
+  color: var(--indigo);
+}
+
+.todo__due--done {
+  background: #f0ece3;
+  color: var(--ink-4);
+}
+
+/* ============================================================
+   旅日記
+   ============================================================ */
+.diary {
+  position: relative;
+  padding: 16px 16px 18px;
+  overflow: hidden;
+}
+
+.diary__ribbon {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+}
+
+.diary__area {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  border: none;
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 14.5px;
+  line-height: 30px;
+  color: var(--ink);
+  resize: none;
+  overflow: hidden;
+  /* 罫線のある便箋のような下地 */
+  background-color: #fffdf8;
+  background-image: repeating-linear-gradient(
+    180deg,
+    transparent 0 29px,
+    #efe7d8 29px 30px
+  );
+  background-position: 0 12px;
+  transition: box-shadow 0.2s var(--ease);
+}
+
+.diary__area::placeholder {
+  color: #bfc5cd;
+}
+
+.diary__area:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255, 106, 61, 0.16);
+}
+
+.diary__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 11px;
+}
+
+.diary__photos {
+  display: flex;
+  gap: 7px;
+  margin-top: 12px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+
+.diary__photos::-webkit-scrollbar {
+  display: none;
+}
+
+.diary__photo,
+.diary__add {
+  flex: none;
+  width: 84px;
+  height: 84px;
+  border-radius: 13px;
+  overflow: hidden;
+  background: #f0ebe2;
+  border: 1px solid var(--line-2);
+  transition: transform 0.2s var(--ease-spring);
+  animation: pop-in 0.3s var(--ease-spring) both;
+}
+
+.diary__photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.diary__photo:active,
+.diary__add:active {
+  transform: scale(0.94);
+}
+
+.diary__add {
+  border: 1.5px dashed var(--line);
+  background: #fffdfa;
+  color: var(--ink-4);
+  display: grid;
+  place-items: center;
+}
+
+.diary__add:hover {
+  border-color: var(--coral);
+  color: var(--coral-deep);
+  background: var(--coral-soft);
+}
+
+.diary__add.is-busy {
+  opacity: 0.55;
+  pointer-events: none;
+}

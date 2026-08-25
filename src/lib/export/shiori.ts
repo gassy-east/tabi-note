@@ -29,7 +29,8 @@ const CSS = `
   background: #ffffff; color: #16181d;
   font-family: 'Zen Kaku Gothic New', system-ui, sans-serif; line-height: 1.6;
 }
-.sh-num { font-family: 'Outfit', sans-serif; font-variant-numeric: tabular-nums; }
+/* tabular-nums は html2canvas の文字幅計算とずれて右端がはみ出すため使わない */
+.sh-num { font-family: 'Outfit', sans-serif; }
 .sh-serif { font-family: 'Fraunces', Georgia, serif; }
 
 /* ---- 表紙 ---- */
@@ -97,21 +98,46 @@ const CSS = `
 }
 .sh-empty { font-size: 13px; color: #98a1ae; padding: 26px 0; text-align: center; border: 1px dashed #e7ded0; border-radius: 12px; }
 
+/* ---- 日記 ---- */
+.sh-diaryhead { display: flex; align-items: center; gap: 10px; margin: 20px 0 9px; }
+.sh-diaryhead b { font-size: 12.5px; font-weight: 800; letter-spacing: 0.12em; color: #6b7482; }
+.sh-diaryhead i { flex: 1; height: 0; border-top: 1px dashed #d8ccb7; }
+.sh-diaryline {
+  font-size: 12.5px; line-height: 2; color: #3d4552;
+  padding: 0 0 0 14px; border-left: 2px solid #efe7d8; min-height: 12px;
+}
+
 /* ---- まとめページ ---- */
 .sh-plainhead { padding: 46px ${PAGE_PAD}px 0; }
 .sh-h2 { font-size: 24px; font-weight: 900; letter-spacing: 0.02em; }
 .sh-h2 + .sh-rule { margin-top: 12px; }
 .sh-rule { height: 0; border-top: 1px dashed #d8ccb7; }
-.sh-cols { display: flex; gap: 26px; margin-top: 20px; }
-.sh-col { flex: 1; }
-.sh-check { display: flex; align-items: flex-start; gap: 9px; padding: 7px 0; border-bottom: 1px dashed #f0e9dd; }
+.sh-flowbody {
+  display: flex; flex-wrap: wrap; align-content: flex-start;
+  gap: 0 26px; overflow: hidden; margin-top: 4px;
+}
+.sh-secthead {
+  width: 100%; font-size: 15px; font-weight: 800; letter-spacing: 0.04em;
+  color: #16181d; margin: 22px 0 4px;
+}
+.sh-secthead:first-child { margin-top: 6px; }
+.sh-check {
+  width: calc(50% - 13px);
+  display: flex; align-items: flex-start; gap: 9px; padding: 7px 0;
+  border-bottom: 1px dashed #f0e9dd;
+}
+.sh-check--wide { width: 100%; }
 .sh-box { width: 15px; height: 15px; border: 1.6px solid #c9bda7; border-radius: 4px; flex: none; margin-top: 3px; }
 .sh-check span { font-size: 13px; }
-.sh-costrow { display: flex; align-items: baseline; justify-content: space-between; padding: 9px 0; border-bottom: 1px dashed #f0e9dd; font-size: 13.5px; }
-.sh-costrow b { font-size: 15px; font-weight: 700; }
-.sh-total { display: flex; align-items: baseline; justify-content: space-between; margin-top: 14px; padding: 14px 18px; border-radius: 12px; background: #faf6ef; }
-.sh-total span { font-size: 12px; font-weight: 800; letter-spacing: 0.14em; color: #6b7482; }
-.sh-total b { font-size: 26px; font-weight: 700; }
+.sh-check em { font-style: normal; font-size: 10.5px; font-weight: 800; color: #98a1ae; margin-left: 6px; letter-spacing: 0.04em; }
+.sh-costrow, .sh-total, .sh-note, .sh-diaryhead, .sh-diaryline { width: 100%; }
+/* space-between は html2canvas がずらすことがあるので flex:1 で寄せる */
+.sh-costrow { display: flex; align-items: baseline; padding: 9px 0; border-bottom: 1px dashed #f0e9dd; font-size: 13.5px; }
+.sh-costrow span { flex: 1; min-width: 0; }
+.sh-costrow b { font-size: 15px; font-weight: 700; text-align: right; }
+.sh-total { display: flex; align-items: baseline; margin-top: 14px; padding: 14px 18px; border-radius: 12px; background: #faf6ef; }
+.sh-total span { flex: 1; min-width: 0; font-size: 12px; font-weight: 800; letter-spacing: 0.14em; color: #6b7482; }
+.sh-total b { font-size: 26px; font-weight: 700; text-align: right; }
 .sh-note { font-size: 13px; color: #3d4552; white-space: pre-wrap; margin-top: 14px; line-height: 1.8; }
 
 /* ---- 思い出アルバム ---- */
@@ -150,6 +176,9 @@ const CSS = `
 .sh-poster-body .sh-photos { gap: 12px; margin-top: 16px; }
 .sh-poster-body .sh-photo { width: 288px; height: 200px; border-radius: 16px; }
 .sh-poster-body .sh-empty { font-size: 22px; padding: 52px 0; border-radius: 20px; }
+.sh-poster-body .sh-diaryhead { margin: 34px 0 14px; }
+.sh-poster-body .sh-diaryhead b { font-size: 19px; }
+.sh-poster-body .sh-diaryline { font-size: 19px; padding-left: 22px; border-left-width: 3px; }
 `
 
 function ensureStyle() {
@@ -304,72 +333,134 @@ function dayPage(trip: Trip, day: Day, index: number, cont: boolean): { page: HT
   return { page, body }
 }
 
-function summaryPage(trip: Trip): HTMLElement | null {
+const SUMMARY_HEAD_H = 136
+const SUMMARY_BODY_MAX = A4_H - SUMMARY_HEAD_H - FOOTER_H - 24
+
+function summaryShell(trip: Trip, cont: boolean): { page: HTMLElement; body: HTMLElement } {
+  const page = document.createElement('div')
+  page.className = 'sh-page'
+  page.innerHTML = `
+    <div class="sh-plainhead">
+      <div class="sh-eyebrow" style="color:#98a1ae">Checklist &amp; Budget</div>
+      <div class="sh-h2" style="margin-top:8px">旅の準備と、費用${
+        cont ? '<span style="font-size:15px;font-weight:600;color:#98a1ae"> （つづき）</span>' : ''
+      }</div>
+      <div class="sh-rule"></div>
+      <div class="sh-flowbody" style="height:${SUMMARY_BODY_MAX}px"></div>
+    </div>
+    <div class="sh-foot"><span>${esc(trip.title)}</span><span class="sh-num sh-pageno"></span></div>`
+  return { page, body: page.querySelector('.sh-flowbody') as HTMLElement }
+}
+
+function node(html: string): HTMLElement {
+  const holder = document.createElement('div')
+  holder.innerHTML = html.trim()
+  return holder.firstElementChild as HTMLElement
+}
+
+/** ページをまたいで要素を流し込むための小さな仕組み */
+function makeFlow(
+  makePage: (cont: boolean) => { page: HTMLElement; body: HTMLElement },
+  max: number,
+  root: HTMLElement,
+) {
+  let current = makePage(false)
+  const pages: HTMLElement[] = [current.page]
+  root.appendChild(current.page)
+  return {
+    pages,
+    get body() {
+      return current.body
+    },
+    push(el: HTMLElement) {
+      current.body.appendChild(el)
+      if (current.body.scrollHeight > max && current.body.childElementCount > 1) {
+        current.body.removeChild(el)
+        current = makePage(true)
+        pages.push(current.page)
+        root.appendChild(current.page)
+        current.body.appendChild(el)
+      }
+    },
+  }
+}
+
+/** 準備（やること・持ち物）と費用のページ */
+function summaryPages(trip: Trip, root: HTMLElement): HTMLElement[] {
   const costs = trip.days.map((d) => ({
     date: d.date,
     total: d.activities.reduce((n, a) => n + (a.cost ?? 0), 0),
   }))
   const grand = costs.reduce((n, c) => n + c.total, 0)
-  const hasPacking = trip.packing.length > 0
-  if (!hasPacking && grand === 0 && !trip.memo) return null
+  const todos = trip.todos ?? []
+  const packing = trip.packing ?? []
+  if (todos.length === 0 && packing.length === 0 && grand === 0 && !trip.memo) return []
 
-  const page = document.createElement('div')
-  page.className = 'sh-page'
-  const half = Math.ceil(trip.packing.length / 2)
-  const col = (items: typeof trip.packing) =>
-    items
-      .map(
-        (p) =>
-          `<div class="sh-check"><div class="sh-box"></div><span>${esc(p.label)}</span></div>`,
+  const flow = makeFlow((cont) => summaryShell(trip, cont), SUMMARY_BODY_MAX, root)
+
+  if (todos.length > 0) {
+    flow.push(node('<div class="sh-secthead">旅までにやること</div>'))
+    for (const t of todos) {
+      flow.push(
+        node(
+          `<div class="sh-check"><div class="sh-box"></div><span>${esc(t.label)}${
+            t.due ? `<em>${esc(formatJp(t.due))}まで</em>` : ''
+          }</span></div>`,
+        ),
       )
-      .join('')
+    }
+  }
 
-  page.innerHTML = `
-    <div class="sh-plainhead">
-      <div class="sh-eyebrow" style="color:#98a1ae">Checklist &amp; Budget</div>
-      <div class="sh-h2" style="margin-top:8px">持ち物と費用のまとめ</div>
-      <div class="sh-rule"></div>
-      ${
-        hasPacking
-          ? `<div class="sh-cols">
-              <div class="sh-col">${col(trip.packing.slice(0, half))}</div>
-              <div class="sh-col">${col(trip.packing.slice(half))}</div>
-            </div>`
-          : ''
-      }
-      ${
-        grand > 0
-          ? `<div style="margin-top:34px">
-              <div class="sh-h2" style="font-size:18px">日ごとの費用</div>
-              <div class="sh-rule" style="margin-top:10px"></div>
-              <div style="margin-top:6px">
-                ${costs
-                  .map(
-                    (c, i) =>
-                      `<div class="sh-costrow"><span>DAY ${i + 1}　${esc(
-                        formatJp(c.date),
-                      )}</span><b class="sh-num">${esc(yen(c.total))}</b></div>`,
-                  )
-                  .join('')}
-              </div>
-              <div class="sh-total"><span>TOTAL</span><b class="sh-num sh-serif">${esc(
-                yen(grand),
-              )}</b></div>
-            </div>`
-          : ''
-      }
-      ${
-        trip.memo
-          ? `<div style="margin-top:34px">
-              <div class="sh-h2" style="font-size:18px">メモ</div>
-              <div class="sh-rule" style="margin-top:10px"></div>
-              <div class="sh-note">${esc(trip.memo)}</div>
-            </div>`
-          : ''
-      }
-    </div>
-    <div class="sh-foot"><span>${esc(trip.title)}</span><span class="sh-num sh-pageno"></span></div>`
-  return page
+  if (packing.length > 0) {
+    flow.push(node('<div class="sh-secthead">持ち物</div>'))
+    for (const p of packing) {
+      flow.push(
+        node(`<div class="sh-check"><div class="sh-box"></div><span>${esc(p.label)}</span></div>`),
+      )
+    }
+  }
+
+  if (grand > 0) {
+    flow.push(node('<div class="sh-secthead">日ごとの費用</div>'))
+    costs.forEach((c, i) => {
+      flow.push(
+        node(
+          `<div class="sh-costrow"><span>DAY ${i + 1}　${esc(
+            formatJp(c.date),
+          )}</span><b class="sh-num">${esc(yen(c.total))}</b></div>`,
+        ),
+      )
+    })
+    flow.push(
+      node(
+        `<div class="sh-total"><span>TOTAL</span><b class="sh-num sh-serif">${esc(
+          yen(grand),
+        )}</b></div>`,
+      ),
+    )
+  }
+
+  if (trip.memo) {
+    flow.push(node('<div class="sh-secthead">メモ</div>'))
+    for (const line of splitParagraphs(trip.memo)) {
+      flow.push(node(`<div class="sh-note" style="margin-top:0">${esc(line) || '&nbsp;'}</div>`))
+    }
+  }
+
+  return flow.pages
+}
+
+/** 長文をページ送りできる大きさに切り分ける */
+function splitParagraphs(text: string, chunk = 420): string[] {
+  const out: string[] = []
+  for (const para of text.split('\n')) {
+    if (para.length <= chunk) {
+      out.push(para)
+      continue
+    }
+    for (let i = 0; i < para.length; i += chunk) out.push(para.slice(i, i + chunk))
+  }
+  return out
 }
 
 const MEMORIES_PER_PAGE = 6
@@ -423,38 +514,28 @@ export function buildShioriPages(trip: Trip, root: HTMLElement): HTMLElement[] {
   pages.push(cover)
 
   trip.days.forEach((day, index) => {
-    let current = dayPage(trip, day, index, false)
-    root.appendChild(current.page)
-    pages.push(current.page)
+    const flow = makeFlow((cont) => dayPage(trip, day, index, cont), BODY_MAX, root)
 
     if (day.activities.length === 0) {
       const empty = document.createElement('div')
       empty.className = 'sh-empty'
       empty.textContent = 'この日はまだ予定がありません'
-      current.body.appendChild(empty)
-      return
+      flow.body.appendChild(empty)
+    } else {
+      for (const act of day.activities) flow.push(node(activityHtml(act)))
     }
 
-    for (const act of day.activities) {
-      const holder = document.createElement('div')
-      holder.innerHTML = activityHtml(act)
-      const node = holder.firstElementChild as HTMLElement
-      current.body.appendChild(node)
-      if (current.body.scrollHeight > BODY_MAX && current.body.childElementCount > 1) {
-        current.body.removeChild(node)
-        current = dayPage(trip, day, index, true)
-        root.appendChild(current.page)
-        pages.push(current.page)
-        current.body.appendChild(node)
+    if (day.diary) {
+      flow.push(node(`<div class="sh-diaryhead"><b>DAY ${index + 1} の日記</b><i></i></div>`))
+      for (const line of splitParagraphs(day.diary)) {
+        flow.push(node(`<div class="sh-diaryline">${esc(line) || '&nbsp;'}</div>`))
       }
     }
+
+    pages.push(...flow.pages)
   })
 
-  const summary = summaryPage(trip)
-  if (summary) {
-    root.appendChild(summary)
-    pages.push(summary)
-  }
+  pages.push(...summaryPages(trip, root))
 
   for (const page of memoriesPages(trip)) {
     root.appendChild(page)
@@ -503,6 +584,12 @@ export function buildDayPoster(trip: Trip, day: Day, index: number, root: HTMLEl
         day.activities.length
           ? day.activities.map((a) => activityHtml(a)).join('')
           : '<div class="sh-empty">この日はまだ予定がありません</div>'
+      }
+      ${
+        day.diary
+          ? `<div class="sh-diaryhead"><b>DAY ${index + 1} の日記</b><i></i></div>
+             <div class="sh-diaryline">${esc(day.diary).replace(/\n/g, '<br />')}</div>`
+          : ''
       }
     </div>
     <div class="sh-poster-foot">

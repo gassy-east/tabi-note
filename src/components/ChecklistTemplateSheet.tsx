@@ -2,8 +2,7 @@ import { useState } from 'react'
 import { Sheet } from './Sheet'
 import { Icon } from './Icon'
 import { toast } from './Toast'
-import { DEFAULT_PACKING } from '../lib/catalog'
-import { getPackingTemplate, setPackingTemplate } from '../state/settings'
+import { factoryTemplate, getTemplate, setTemplate, type TemplateKind } from '../state/settings'
 import { moveItem, uid } from '../lib/util'
 
 interface Row {
@@ -11,15 +10,33 @@ interface Row {
   label: string
 }
 
-interface PackingTemplateSheetProps {
+const COPY: Record<TemplateKind, { title: string; lead: string; placeholder: string; from: string }> =
+  {
+    packing: {
+      title: '持ち物テンプレート',
+      lead: '新しい旅をつくるとき、ここに並べた項目が持ち物リストの初期値になります。いつも持っていくものを、自分用に整えておいてください。',
+      placeholder: '項目を追加（例：延長コード）',
+      from: 'この旅の持ち物から作る',
+    },
+    todo: {
+      title: 'やることテンプレート',
+      lead: '新しい旅をつくるとき、ここに並べた項目が「旅までにやること」の初期値になります。毎回やる準備を書いておくと、抜けがなくなります。',
+      placeholder: '項目を追加（例：レンタカーを予約する）',
+      from: 'この旅のやることから作る',
+    },
+  }
+
+interface ChecklistTemplateSheetProps {
+  kind: TemplateKind
   onClose: () => void
-  /** 「この旅の持ち物から作る」で使う候補 */
-  fromTrip?: { title: string; labels: string[] }
+  /** 「この旅の◯◯から作る」で使う候補 */
+  fromTrip?: string[]
 }
 
-export function PackingTemplateSheet({ onClose, fromTrip }: PackingTemplateSheetProps) {
+export function ChecklistTemplateSheet({ kind, onClose, fromTrip }: ChecklistTemplateSheetProps) {
+  const copy = COPY[kind]
   const [rows, setRows] = useState<Row[]>(() =>
-    getPackingTemplate().map((label) => ({ id: uid('tp_'), label })),
+    getTemplate(kind).map((label) => ({ id: uid('tp_'), label })),
   )
   const [input, setInput] = useState('')
 
@@ -40,7 +57,7 @@ export function PackingTemplateSheet({ onClose, fromTrip }: PackingTemplateSheet
 
   return (
     <Sheet
-      title="持ち物テンプレート"
+      title={copy.title}
       onClose={onClose}
       footer={
         <>
@@ -50,7 +67,10 @@ export function PackingTemplateSheet({ onClose, fromTrip }: PackingTemplateSheet
           <button
             className="btn btn--primary"
             onClick={() => {
-              setPackingTemplate(rows.map((r) => r.label))
+              setTemplate(
+                kind,
+                rows.map((r) => r.label),
+              )
               toast('テンプレートを保存しました')
               onClose()
             }}
@@ -62,8 +82,7 @@ export function PackingTemplateSheet({ onClose, fromTrip }: PackingTemplateSheet
       }
     >
       <p className="tiny muted" style={{ marginBottom: 14 }}>
-        新しい旅をつくるとき、ここに並べた項目が持ち物リストの初期値になります。
-        いつも持っていくものを、自分用に整えておいてください。
+        {copy.lead}
       </p>
 
       <ul className="tpl">
@@ -71,12 +90,12 @@ export function PackingTemplateSheet({ onClose, fromTrip }: PackingTemplateSheet
           <li className="tpl__row" key={row.id}>
             <div className="tpl__move">
               <button
-                className="tpl__arrow"
+                className="tpl__arrow tpl__arrow--up"
                 onClick={() => move(i, -1)}
                 disabled={i === 0}
                 aria-label="ひとつ上へ"
               >
-                <Icon name="down" size={13} strokeWidth={2.6} style={{ transform: 'rotate(180deg)' }} />
+                <Icon name="down" size={13} strokeWidth={2.6} />
               </button>
               <button
                 className="tpl__arrow"
@@ -119,7 +138,7 @@ export function PackingTemplateSheet({ onClose, fromTrip }: PackingTemplateSheet
           className="input"
           style={{ padding: '9px 12px', fontSize: 14 }}
           value={input}
-          placeholder="項目を追加（例：延長コード）"
+          placeholder={copy.placeholder}
           onChange={(e) => setInput(e.target.value)}
         />
         <button className="btn btn--soft btn--sm" type="submit" disabled={!input.trim()}>
@@ -133,18 +152,18 @@ export function PackingTemplateSheet({ onClose, fromTrip }: PackingTemplateSheet
       <div className="row" style={{ gap: 8, flexWrap: 'wrap', paddingBottom: 8 }}>
         <button
           className="btn btn--soft btn--sm"
-          onClick={() => setRows(DEFAULT_PACKING.map((label) => ({ id: uid('tp_'), label })))}
+          onClick={() => setRows(factoryTemplate(kind).map((label) => ({ id: uid('tp_'), label })))}
         >
           <Icon name="sparkle" size={15} />
           はじめの内容にもどす
         </button>
-        {fromTrip && fromTrip.labels.length > 0 ? (
+        {fromTrip && fromTrip.length > 0 ? (
           <button
             className="btn btn--soft btn--sm"
-            onClick={() => setRows(fromTrip.labels.map((label) => ({ id: uid('tp_'), label })))}
+            onClick={() => setRows(fromTrip.map((label) => ({ id: uid('tp_'), label })))}
           >
-            <Icon name="suitcase" size={15} />
-            この旅の持ち物から作る
+            <Icon name={kind === 'packing' ? 'suitcase' : 'check'} size={15} />
+            {copy.from}
           </button>
         ) : null}
         <span className="tiny muted" style={{ marginLeft: 'auto' }}>

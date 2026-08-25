@@ -1,11 +1,9 @@
 import { useRef, useState } from 'react'
 import { Icon } from './Icon'
-import { Lightbox } from './Lightbox'
-import { Confirm } from './Sheet'
+import { MemoryViewer } from './MemoryViewer'
 import { toast } from './Toast'
 import { savePhotos, usePhoto } from '../state/photos'
-import { addMemories, removeMemory, setCoverPhoto, updateMemory } from '../state/store'
-import { formatJp } from '../lib/date'
+import { addMemories } from '../state/store'
 import { clsx } from '../lib/util'
 import type { Trip } from '../types'
 
@@ -33,10 +31,8 @@ export function MemoryAlbum({ trip }: { trip: Trip }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
   const [openIndex, setOpenIndex] = useState<number | null>(null)
-  const [confirmDelete, setConfirmDelete] = useState(false)
 
   const memories = trip.memories
-  const current = openIndex != null ? memories[openIndex] : undefined
 
   async function handleFiles(fileList: FileList | null) {
     if (!fileList || fileList.length === 0) return
@@ -63,9 +59,7 @@ export function MemoryAlbum({ trip }: { trip: Trip }) {
           思い出アルバム
         </h3>
         <div className="row" style={{ gap: 8 }}>
-          {memories.length > 0 ? (
-            <span className="tiny muted num">{memories.length}枚</span>
-          ) : null}
+          {memories.length > 0 ? <span className="tiny muted num">{memories.length}枚</span> : null}
           <button
             className="btn btn--soft btn--sm"
             disabled={busy}
@@ -78,11 +72,7 @@ export function MemoryAlbum({ trip }: { trip: Trip }) {
       </div>
 
       {memories.length === 0 ? (
-        <button
-          className="album__empty"
-          disabled={busy}
-          onClick={() => inputRef.current?.click()}
-        >
+        <button className="album__empty" disabled={busy} onClick={() => inputRef.current?.click()}>
           <span className="album__empty-icon">
             <Icon name="image" size={24} strokeWidth={1.8} />
           </span>
@@ -119,66 +109,13 @@ export function MemoryAlbum({ trip }: { trip: Trip }) {
         onChange={(e) => void handleFiles(e.target.files)}
       />
 
-      {current && openIndex != null ? (
-        <Lightbox
-          photoIds={memories.map((m) => m.photoId)}
-          index={openIndex}
+      {openIndex != null ? (
+        <MemoryViewer
+          trip={trip}
+          memories={memories}
+          index={Math.min(openIndex, memories.length - 1)}
           onIndexChange={setOpenIndex}
           onClose={() => setOpenIndex(null)}
-        >
-          <input
-            className="lightbox__input"
-            value={current.caption}
-            placeholder="ひとこと添える（例：宿の窓から見えた朝焼け）"
-            onChange={(e) => updateMemory(trip.id, { ...current, caption: e.target.value })}
-          />
-          <div className="lightbox__actions">
-            <select
-              className="lightbox__select"
-              value={current.dayId}
-              onChange={(e) => updateMemory(trip.id, { ...current, dayId: e.target.value })}
-              aria-label="いつの思い出か"
-            >
-              <option value="">日付なし</option>
-              {trip.days.map((d, i) => (
-                <option key={d.id} value={d.id}>
-                  DAY {i + 1}・{formatJp(d.date)}
-                </option>
-              ))}
-            </select>
-            <button
-              className="lightbox__btn"
-              onClick={() => {
-                setCoverPhoto(trip.id, current.photoId)
-                toast('カバー写真にしました')
-              }}
-            >
-              <Icon name="sparkle" size={15} strokeWidth={2.2} />
-              カバーに
-            </button>
-            <button
-              className="lightbox__btn lightbox__btn--danger"
-              onClick={() => setConfirmDelete(true)}
-            >
-              <Icon name="trash" size={15} strokeWidth={2.2} />
-              削除
-            </button>
-          </div>
-        </Lightbox>
-      ) : null}
-
-      {confirmDelete && current ? (
-        <Confirm
-          title="この写真を削除しますか？"
-          message="アルバムから取り除かれ、端末からも消えます。"
-          confirmLabel="削除する"
-          danger
-          onClose={() => setConfirmDelete(false)}
-          onConfirm={() => {
-            removeMemory(trip.id, current.id)
-            toast('写真を削除しました')
-            setOpenIndex(memories.length > 1 ? Math.max(0, (openIndex ?? 1) - 1) : null)
-          }}
         />
       ) : null}
     </section>

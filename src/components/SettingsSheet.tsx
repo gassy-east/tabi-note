@@ -3,8 +3,8 @@ import { Sheet } from './Sheet'
 import { Icon } from './Icon'
 import { toast } from './Toast'
 import { useStore } from '../state/store'
-import { usePackingTemplate } from '../state/settings'
-import { PackingTemplateSheet } from './PackingTemplateSheet'
+import { useTemplate, type TemplateKind } from '../state/settings'
+import { ChecklistTemplateSheet } from './ChecklistTemplateSheet'
 import { exportBackup, importBackup } from '../lib/backup'
 import { estimateUsage } from '../lib/db'
 
@@ -19,8 +19,9 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
   const fileRef = useRef<HTMLInputElement>(null)
   const [usage, setUsage] = useState<{ usage: number; quota: number } | null>(null)
   const [busy, setBusy] = useState(false)
-  const [template, setTemplate] = useState(false)
-  const packingTemplate = usePackingTemplate()
+  const [template, setTemplate] = useState<TemplateKind | null>(null)
+  const packingTemplate = useTemplate('packing')
+  const todoTemplate = useTemplate('todo')
 
   useEffect(() => {
     void estimateUsage().then(setUsage)
@@ -60,7 +61,17 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
     <>
     <Sheet title="設定とバックアップ" onClose={onClose}>
       <div className="menu" style={{ padding: 0, marginBottom: 18 }}>
-        <button className="menu__item" onClick={() => setTemplate(true)}>
+        <button className="menu__item" onClick={() => setTemplate('todo')}>
+          <span className="menu__icon" style={{ background: 'var(--indigo-soft)', color: 'var(--indigo)' }}>
+            <Icon name="check" size={19} />
+          </span>
+          <span>
+            やることテンプレートを編集
+            <small>新しい旅の「旅までにやること」（現在 {todoTemplate.length} 項目）</small>
+          </span>
+          <Icon name="right" size={17} />
+        </button>
+        <button className="menu__item" onClick={() => setTemplate('packing')}>
           <span
             className="menu__icon"
             style={{ background: 'var(--coral-soft)', color: 'var(--coral-deep)' }}
@@ -69,7 +80,7 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
           </span>
           <span>
             持ち物テンプレートを編集
-            <small>新しい旅の初期リスト（現在 {packingTemplate.length} 項目）</small>
+            <small>新しい旅の持ち物リスト（現在 {packingTemplate.length} 項目）</small>
           </span>
           <Icon name="right" size={17} />
         </button>
@@ -149,7 +160,9 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
         onChange={(e) => void handleImport(e.target.files?.[0])}
       />
     </Sheet>
-    {template ? <PackingTemplateSheet onClose={() => setTemplate(false)} /> : null}
+    {template ? (
+      <ChecklistTemplateSheet kind={template} onClose={() => setTemplate(null)} />
+    ) : null}
     </>
   )
 }
