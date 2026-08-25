@@ -16,9 +16,9 @@ export default defineConfig({
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
       },
       manifest: {
-        name: 'たびノート — 旅のしおりをつくる',
-        short_name: 'たびノート',
-        description: '旅行の予定を組み立てて、写真つきのしおりに書き出せるアプリ',
+        name: 'Tabi Note — たびノート',
+        short_name: 'Tabi Note',
+        description: 'Plan a trip and export it as a photo booklet. 旅の予定をしおりに。',
         lang: 'ja',
         start_url: './',
         scope: './',

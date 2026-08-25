@@ -4,8 +4,8 @@ import { Icon } from './Icon'
 import { CoverPicker } from './PhotoUploader'
 import { ChecklistTemplateSheet } from './ChecklistTemplateSheet'
 import { useTemplate, type TemplateKind } from '../state/settings'
-import { THEMES } from '../lib/catalog'
-import { addDays, nightsBetween, rangeLabel } from '../lib/date'
+import { THEMES, themeLabel } from '../lib/catalog'
+import { addDays, formatOffset, nightsBetween, offsetChoices, rangeLabel } from '../lib/date'
 import {
   createTrip,
   newTripDefaults,
@@ -15,6 +15,7 @@ import {
 } from '../state/store'
 import type { ThemeId, Trip } from '../types'
 import { toast } from './Toast'
+import { useT } from '../i18n'
 
 interface TemplateToggleProps {
   label: string
@@ -22,9 +23,28 @@ interface TemplateToggleProps {
   checked: boolean
   onChange: (value: boolean) => void
   onEdit: () => void
+  editLabel: string
+  emptyLabel: string
+  previewLabel: (items: string, n: number) => string
 }
 
-function TemplateToggle({ label, items, checked, onChange, onEdit }: TemplateToggleProps) {
+function TemplateToggle({
+  label,
+  items,
+  checked,
+  onChange,
+  onEdit,
+  editLabel,
+  emptyLabel,
+  previewLabel,
+}: TemplateToggleProps) {
+  const preview =
+    items.length === 0
+      ? emptyLabel
+      : items.length <= 2
+        ? items.join(' · ')
+        : previewLabel(items.slice(0, 2).join(' · '), items.length - 2)
+
   return (
     <div
       style={{
@@ -45,11 +65,7 @@ function TemplateToggle({ label, items, checked, onChange, onEdit }: TemplateTog
           <span style={{ fontSize: 14, fontWeight: 700 }}>
             {label}
             <small style={{ display: 'block', fontWeight: 500, color: 'var(--ink-4)', fontSize: 12 }}>
-              {items.length > 0
-                ? `${items.slice(0, 2).join('・')}${
-                    items.length > 2 ? ` ほか ${items.length - 2} 項目` : ''
-                  }`
-                : 'テンプレートは空です'}
+              {preview}
             </small>
           </span>
         </label>
@@ -58,7 +74,7 @@ function TemplateToggle({ label, items, checked, onChange, onEdit }: TemplateTog
           className="iconbtn iconbtn--plain"
           style={{ width: 34, height: 34 }}
           onClick={onEdit}
-          aria-label={`${label}を編集`}
+          aria-label={editLabel}
         >
           <Icon name="pencil" size={16} />
         </button>
@@ -74,6 +90,7 @@ interface TripFormSheetProps {
 }
 
 export function TripFormSheet({ trip, onClose, onCreated }: TripFormSheetProps) {
+  const t = useT()
   const isEdit = Boolean(trip)
   const defaults: NewTripInput = useMemo(() => newTripDefaults(), [])
 
@@ -82,7 +99,8 @@ export function TripFormSheet({ trip, onClose, onCreated }: TripFormSheetProps) 
   const [startDate, setStartDate] = useState(trip?.startDate ?? defaults.startDate)
   const [endDate, setEndDate] = useState(trip?.endDate ?? defaults.endDate)
   const [themeId, setThemeId] = useState<ThemeId>(trip?.theme ?? 'sunset')
-  const [members, setMembers] = useState((trip?.members ?? []).join('、'))
+  const [timeDiff, setTimeDiff] = useState<number>(trip?.timeDiff ?? 0)
+  const [members, setMembers] = useState((trip?.members ?? []).join(', '))
   const [memo, setMemo] = useState(trip?.memo ?? '')
   const [coverId, setCoverId] = useState<string | null>(trip?.coverPhotoId ?? null)
   const [withPacking, setWithPacking] = useState(true)
@@ -101,11 +119,12 @@ export function TripFormSheet({ trip, onClose, onCreated }: TripFormSheetProps) 
 
   function submit() {
     if (!startDate || !endDate) {
-      toast('日程を入れてください', 'error')
+      toast(t('trip.needDates'), 'error')
       return
     }
     const memberList = members
-      .split(/[、,\s]+/)
+      // 区切りはカンマ類のみ。空白で切ると「Jean Dupont」のような名前が割れてしまう
+      .split(/[、,，]+/)
       .map((m) => m.trim())
       .filter(Boolean)
 
@@ -116,11 +135,12 @@ export function TripFormSheet({ trip, onClose, onCreated }: TripFormSheetProps) 
         startDate,
         endDate,
         theme: themeId,
+        timeDiff,
         members: memberList,
         memo,
       })
       if (coverId !== trip.coverPhotoId) setCoverPhoto(trip.id, coverId)
-      toast('旅の情報を更新しました')
+      toast(t('trip.updated'))
     } else {
       const id = createTrip({
         title,
@@ -128,12 +148,13 @@ export function TripFormSheet({ trip, onClose, onCreated }: TripFormSheetProps) 
         startDate,
         endDate,
         theme: themeId,
+        timeDiff,
         members: memberList,
         withTodoTemplate: withTodos,
         withPackingTemplate: withPacking,
       })
       if (coverId) setCoverPhoto(id, coverId)
-      toast('新しい旅をつくりました')
+      toast(t('trip.created'))
       onCreated?.(id)
     }
     onClose()
@@ -141,161 +162,190 @@ export function TripFormSheet({ trip, onClose, onCreated }: TripFormSheetProps) 
 
   return (
     <>
-    <Sheet
-      title={isEdit ? '旅の情報を編集' : '新しい旅をつくる'}
-      onClose={onClose}
-      footer={
-        <>
-          <button className="btn btn--soft" onClick={onClose}>
-            キャンセル
-          </button>
-          <button className="btn btn--primary" onClick={submit}>
-            <Icon name={isEdit ? 'check' : 'sparkle'} size={17} strokeWidth={2.2} />
-            {isEdit ? '保存する' : 'はじめる'}
-          </button>
-        </>
-      }
-    >
-      <div className="field">
-        <label className="field__label" htmlFor="trip-title">
-          <Icon name="compass" size={14} /> 旅のタイトル
-        </label>
-        <input
-          id="trip-title"
-          className="input"
-          value={title}
-          placeholder="はじめての京都旅"
-          onChange={(e) => setTitle(e.target.value)}
-          autoFocus={!isEdit}
-        />
-      </div>
-
-      <div className="field">
-        <label className="field__label" htmlFor="trip-dest">
-          <Icon name="pin" size={14} /> 行き先
-        </label>
-        <input
-          id="trip-dest"
-          className="input"
-          value={destination}
-          placeholder="京都・大阪"
-          onChange={(e) => setDestination(e.target.value)}
-        />
-      </div>
-
-      <div className="field">
-        <span className="field__label">
-          <Icon name="calendar" size={14} /> 日程
-        </span>
-        <div className="field-row">
-          <input
-            className="input num"
-            type="date"
-            value={startDate}
-            onChange={(e) => handleStart(e.target.value)}
-            aria-label="出発日"
-          />
-          <input
-            className="input num"
-            type="date"
-            value={endDate}
-            min={startDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            aria-label="帰着日"
-          />
-        </div>
-        <p className="tiny muted" style={{ marginTop: 6 }}>
-          {rangeLabel(startDate, endDate)}・{dayCount}日間
-          {dayCount > 1 ? `（${dayCount - 1}泊）` : ''}
-        </p>
-        {losing > 0 ? (
-          <p
-            className="tiny"
-            style={{
-              marginTop: 6,
-              color: 'var(--danger)',
-              background: 'var(--danger-soft)',
-              padding: '8px 11px',
-              borderRadius: 10,
-            }}
-          >
-            日程を短くすると、{losing}日ぶんの予定が削除されます
-          </p>
-        ) : null}
-      </div>
-
-      <div className="field">
-        <span className="field__label">
-          <Icon name="sparkle" size={14} /> テーマカラー
-        </span>
-        <div className="themepick">
-          {THEMES.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              className={t.id === themeId ? 'themepick__item is-active' : 'themepick__item'}
-              style={{ background: t.gradient }}
-              onClick={() => setThemeId(t.id)}
-              aria-label={t.label}
-              title={t.label}
-            />
-          ))}
-        </div>
-      </div>
-
-      <div className="field">
-        <span className="field__label">
-          <Icon name="image" size={14} /> カバー写真
-        </span>
-        <CoverPicker photoId={coverId} onChange={setCoverId} />
-      </div>
-
-      <div className="field">
-        <label className="field__label" htmlFor="trip-members">
-          <Icon name="users" size={14} /> 同行者（カンマ区切り）
-        </label>
-        <input
-          id="trip-members"
-          className="input"
-          value={members}
-          placeholder="ゆい、たける"
-          onChange={(e) => setMembers(e.target.value)}
-        />
-      </div>
-
-      {isEdit ? (
+      <Sheet
+        title={isEdit ? t('trip.edit') : t('trip.new')}
+        onClose={onClose}
+        footer={
+          <>
+            <button className="btn btn--soft" onClick={onClose}>
+              {t('common.cancel')}
+            </button>
+            <button className="btn btn--primary" onClick={submit}>
+              <Icon name={isEdit ? 'check' : 'sparkle'} size={17} strokeWidth={2.2} />
+              {isEdit ? t('common.save') : t('trip.start')}
+            </button>
+          </>
+        }
+      >
         <div className="field">
-          <label className="field__label" htmlFor="trip-memo">
-            <Icon name="book" size={14} /> 旅全体のメモ
+          <label className="field__label" htmlFor="trip-title">
+            <Icon name="compass" size={14} /> {t('trip.field.title')}
           </label>
-          <textarea
-            id="trip-memo"
-            className="textarea"
-            value={memo}
-            placeholder="予約番号、集合場所、覚えておきたいことなど"
-            onChange={(e) => setMemo(e.target.value)}
+          <input
+            id="trip-title"
+            className="input"
+            value={title}
+            placeholder={t('trip.field.titlePh')}
+            onChange={(e) => setTitle(e.target.value)}
+            autoFocus={!isEdit}
           />
         </div>
-      ) : (
-        <div className="stack" style={{ gap: 10, marginBottom: 8 }}>
-          <TemplateToggle
-            label="やることテンプレートを入れる"
-            items={todoTemplate}
-            checked={withTodos}
-            onChange={setWithTodos}
-            onEdit={() => setTemplateOpen('todo')}
-          />
-          <TemplateToggle
-            label="持ち物テンプレートを入れる"
-            items={packingTemplate}
-            checked={withPacking}
-            onChange={setWithPacking}
-            onEdit={() => setTemplateOpen('packing')}
-          />
-        </div>
-      )}
 
-    </Sheet>
+        <div className="field">
+          <label className="field__label" htmlFor="trip-dest">
+            <Icon name="pin" size={14} /> {t('trip.field.destination')}
+          </label>
+          <input
+            id="trip-dest"
+            className="input"
+            value={destination}
+            placeholder={t('trip.field.destinationPh')}
+            onChange={(e) => setDestination(e.target.value)}
+          />
+        </div>
+
+        <div className="field">
+          <span className="field__label">
+            <Icon name="calendar" size={14} /> {t('trip.field.dates')}
+          </span>
+          <div className="field-row">
+            <input
+              className="input num"
+              type="date"
+              value={startDate}
+              onChange={(e) => handleStart(e.target.value)}
+              aria-label={t('trip.field.startDate')}
+            />
+            <input
+              className="input num"
+              type="date"
+              value={endDate}
+              min={startDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              aria-label={t('trip.field.endDate')}
+            />
+          </div>
+          <p className="tiny muted" style={{ marginTop: 6 }}>
+            {t('trip.dateSummary', {
+              range: rangeLabel(startDate, endDate, t('trip.noDates')),
+              n: dayCount,
+            })}
+            {dayCount > 1 ? t('trip.nights', { n: dayCount - 1 }) : ''}
+          </p>
+          {losing > 0 ? (
+            <p
+              className="tiny"
+              style={{
+                marginTop: 6,
+                color: 'var(--danger)',
+                background: 'var(--danger-soft)',
+                padding: '8px 11px',
+                borderRadius: 10,
+              }}
+            >
+              {t('trip.shrinkWarn', { n: losing })}
+            </p>
+          ) : null}
+        </div>
+
+        <div className="field">
+          <label className="field__label" htmlFor="trip-tz">
+            <Icon name="clock" size={14} /> {t('tz.tripField')}
+          </label>
+          <select
+            id="trip-tz"
+            className="select num"
+            value={String(timeDiff)}
+            onChange={(e) => setTimeDiff(Number(e.target.value))}
+          >
+            {offsetChoices().map((v) => (
+              <option key={v} value={v}>
+                {v === 0 ? t('tz.none') : formatOffset(v)}
+              </option>
+            ))}
+          </select>
+          <p className="tiny muted" style={{ marginTop: 6 }}>
+            {t('tz.tripHint')}
+          </p>
+        </div>
+
+        <div className="field">
+          <span className="field__label">
+            <Icon name="sparkle" size={14} /> {t('trip.field.theme')}
+          </span>
+          <div className="themepick">
+            {THEMES.map((th) => (
+              <button
+                key={th.id}
+                type="button"
+                className={th.id === themeId ? 'themepick__item is-active' : 'themepick__item'}
+                style={{ background: th.gradient }}
+                onClick={() => setThemeId(th.id)}
+                aria-label={themeLabel(th.id)}
+                title={themeLabel(th.id)}
+              />
+            ))}
+          </div>
+        </div>
+
+        <div className="field">
+          <span className="field__label">
+            <Icon name="image" size={14} /> {t('trip.field.cover')}
+          </span>
+          <CoverPicker photoId={coverId} onChange={setCoverId} />
+        </div>
+
+        <div className="field">
+          <label className="field__label" htmlFor="trip-members">
+            <Icon name="users" size={14} /> {t('trip.field.members')}
+          </label>
+          <input
+            id="trip-members"
+            className="input"
+            value={members}
+            placeholder={t('trip.field.membersPh')}
+            onChange={(e) => setMembers(e.target.value)}
+          />
+        </div>
+
+        {isEdit ? (
+          <div className="field">
+            <label className="field__label" htmlFor="trip-memo">
+              <Icon name="book" size={14} /> {t('trip.field.memo')}
+            </label>
+            <textarea
+              id="trip-memo"
+              className="textarea"
+              value={memo}
+              placeholder={t('trip.field.memoPh')}
+              onChange={(e) => setMemo(e.target.value)}
+            />
+          </div>
+        ) : (
+          <div className="stack" style={{ gap: 10, marginBottom: 8 }}>
+            <TemplateToggle
+              label={t('tpl.withTodos')}
+              items={todoTemplate}
+              checked={withTodos}
+              onChange={setWithTodos}
+              onEdit={() => setTemplateOpen('todo')}
+              editLabel={t('list.editTemplate')}
+              emptyLabel={t('tpl.empty')}
+              previewLabel={(items, n) => t('tpl.preview', { items, n })}
+            />
+            <TemplateToggle
+              label={t('tpl.withPacking')}
+              items={packingTemplate}
+              checked={withPacking}
+              onChange={setWithPacking}
+              onEdit={() => setTemplateOpen('packing')}
+              editLabel={t('list.editTemplate')}
+              emptyLabel={t('tpl.empty')}
+              previewLabel={(items, n) => t('tpl.preview', { items, n })}
+            />
+          </div>
+        )}
+      </Sheet>
       {templateOpen ? (
         <ChecklistTemplateSheet kind={templateOpen} onClose={() => setTemplateOpen(null)} />
       ) : null}

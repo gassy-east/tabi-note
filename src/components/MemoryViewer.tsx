@@ -4,7 +4,8 @@ import { Lightbox } from './Lightbox'
 import { Confirm } from './Sheet'
 import { toast } from './Toast'
 import { removeMemory, setCoverPhoto, updateMemory } from '../state/store'
-import { formatJp } from '../lib/date'
+import { formatDate } from '../lib/date'
+import { useT } from '../i18n'
 import type { Memory, Trip } from '../types'
 
 interface MemoryViewerProps {
@@ -24,6 +25,7 @@ export function MemoryViewer({
   onIndexChange,
   onClose,
 }: MemoryViewerProps) {
+  const t = useT()
   const [confirmDelete, setConfirmDelete] = useState(false)
   const current = memories[index]
   if (!current) return null
@@ -39,7 +41,7 @@ export function MemoryViewer({
         <input
           className="lightbox__input"
           value={current.caption}
-          placeholder="ひとこと添える（例：宿の窓から見えた朝焼け）"
+          placeholder={t('album.captionPh')}
           onChange={(e) => updateMemory(trip.id, { ...current, caption: e.target.value })}
         />
         <div className="lightbox__actions">
@@ -47,12 +49,12 @@ export function MemoryViewer({
             className="lightbox__select"
             value={current.dayId}
             onChange={(e) => updateMemory(trip.id, { ...current, dayId: e.target.value })}
-            aria-label="いつの思い出か"
+            aria-label={t('album.dayAria')}
           >
-            <option value="">日付なし</option>
+            <option value="">{t('album.dayNone')}</option>
             {trip.days.map((d, i) => (
               <option key={d.id} value={d.id}>
-                DAY {i + 1}・{formatJp(d.date)}
+                {t('day.label')} {i + 1}・{formatDate(d.date)}
               </option>
             ))}
           </select>
@@ -60,32 +62,32 @@ export function MemoryViewer({
             className="lightbox__btn"
             onClick={() => {
               setCoverPhoto(trip.id, current.photoId)
-              toast('カバー写真にしました')
+              toast(t('album.coverSet'))
             }}
           >
             <Icon name="sparkle" size={15} strokeWidth={2.2} />
-            カバーに
+            {t('album.setCover')}
           </button>
           <button
             className="lightbox__btn lightbox__btn--danger"
             onClick={() => setConfirmDelete(true)}
           >
             <Icon name="trash" size={15} strokeWidth={2.2} />
-            削除
+            {t('common.delete')}
           </button>
         </div>
       </Lightbox>
 
       {confirmDelete ? (
         <Confirm
-          title="この写真を削除しますか？"
-          message="アルバムから取り除かれ、端末からも消えます。"
-          confirmLabel="削除する"
+          title={t('album.deleteTitle')}
+          message={t('album.deleteBody')}
+          confirmLabel={t('detail.delete.confirm')}
           danger
           onClose={() => setConfirmDelete(false)}
           onConfirm={() => {
             removeMemory(trip.id, current.id)
-            toast('写真を削除しました')
+            toast(t('album.deleted'))
             if (memories.length <= 1) onClose()
             else onIndexChange(Math.max(0, index - 1))
           }}

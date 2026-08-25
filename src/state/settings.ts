@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react'
-import { DEFAULT_PACKING, DEFAULT_TODOS } from '../lib/catalog'
+import { defaultPacking, defaultTodos } from '../lib/catalog'
+import { useLang } from '../i18n'
 
 export type TemplateKind = 'packing' | 'todo'
 
@@ -8,26 +9,26 @@ const STORAGE_KEY: Record<TemplateKind, string> = {
   todo: 'tabinote.todoTemplate',
 }
 
-const FACTORY: Record<TemplateKind, string[]> = {
-  packing: DEFAULT_PACKING,
-  todo: DEFAULT_TODOS,
-}
-
 const listeners = new Set<() => void>()
 
-function read(kind: TemplateKind): string[] {
+/** 保存されていなければ、いまの表示言語の初期値を使う */
+export function factoryTemplate(kind: TemplateKind): string[] {
+  return kind === 'packing' ? defaultPacking() : defaultTodos()
+}
+
+function read(kind: TemplateKind): string[] | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY[kind])
-    if (!raw) return FACTORY[kind].slice()
+    if (!raw) return null
     const parsed: unknown = JSON.parse(raw)
-    if (!Array.isArray(parsed)) return FACTORY[kind].slice()
+    if (!Array.isArray(parsed)) return null
     return parsed.filter((v): v is string => typeof v === 'string')
   } catch {
-    return FACTORY[kind].slice()
+    return null
   }
 }
 
-const templates: Record<TemplateKind, string[]> = {
+const stored: Record<TemplateKind, string[] | null> = {
   packing: read('packing'),
   todo: read('todo'),
 }
@@ -44,21 +45,23 @@ function subscribe(listener: () => void) {
 }
 
 export function getTemplate(kind: TemplateKind): string[] {
-  return templates[kind]
+  return stored[kind] ?? factoryTemplate(kind)
 }
 
 /** テンプレート（新しい旅を作るときの初期リスト）を購読する */
 export function useTemplate(kind: TemplateKind): string[] {
-  return useSyncExternalStore(
+  useLang()
+  useSyncExternalStore(
     subscribe,
-    () => templates[kind],
-    () => templates[kind],
+    () => stored[kind],
+    () => stored[kind],
   )
+  return getTemplate(kind)
 }
 
 export function setTemplate(kind: TemplateKind, items: string[]): void {
   const cleaned = items.map((s) => s.trim()).filter(Boolean)
-  templates[kind] = cleaned
+  stored[kind] = cleaned
   try {
     localStorage.setItem(STORAGE_KEY[kind], JSON.stringify(cleaned))
   } catch {
@@ -67,17 +70,17 @@ export function setTemplate(kind: TemplateKind, items: string[]): void {
   emit()
 }
 
-export function factoryTemplate(kind: TemplateKind): string[] {
-  return FACTORY[kind].slice()
-}
-
 export function resetTemplate(kind: TemplateKind): void {
-  setTemplate(kind, factoryTemplate(kind))
+  stored[kind] = null
+  try {
+    localStorage.removeItem(STORAGE_KEY[kind])
+  } catch {
+    /* 消せなくても既定値にもどす */
+  }
+  emit()
 }
 
 /** この端末でまだ編集されていないか */
 export function isFactoryTemplate(kind: TemplateKind): boolean {
-  const current = templates[kind]
-  const factory = FACTORY[kind]
-  return current.length === factory.length && current.every((v, i) => v === factory[i])
+  return stored[kind] === null
 }

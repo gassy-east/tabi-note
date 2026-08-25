@@ -4,27 +4,12 @@ import { Icon } from './Icon'
 import { toast } from './Toast'
 import { factoryTemplate, getTemplate, setTemplate, type TemplateKind } from '../state/settings'
 import { moveItem, uid } from '../lib/util'
+import { useT } from '../i18n'
 
 interface Row {
   id: string
   label: string
 }
-
-const COPY: Record<TemplateKind, { title: string; lead: string; placeholder: string; from: string }> =
-  {
-    packing: {
-      title: '持ち物テンプレート',
-      lead: '新しい旅をつくるとき、ここに並べた項目が持ち物リストの初期値になります。いつも持っていくものを、自分用に整えておいてください。',
-      placeholder: '項目を追加（例：延長コード）',
-      from: 'この旅の持ち物から作る',
-    },
-    todo: {
-      title: 'やることテンプレート',
-      lead: '新しい旅をつくるとき、ここに並べた項目が「旅までにやること」の初期値になります。毎回やる準備を書いておくと、抜けがなくなります。',
-      placeholder: '項目を追加（例：レンタカーを予約する）',
-      from: 'この旅のやることから作る',
-    },
-  }
 
 interface ChecklistTemplateSheetProps {
   kind: TemplateKind
@@ -34,11 +19,26 @@ interface ChecklistTemplateSheetProps {
 }
 
 export function ChecklistTemplateSheet({ kind, onClose, fromTrip }: ChecklistTemplateSheetProps) {
-  const copy = COPY[kind]
+  const t = useT()
   const [rows, setRows] = useState<Row[]>(() =>
     getTemplate(kind).map((label) => ({ id: uid('tp_'), label })),
   )
   const [input, setInput] = useState('')
+
+  const copy =
+    kind === 'packing'
+      ? {
+          title: t('tpl.packing.title'),
+          lead: t('tpl.packing.lead'),
+          placeholder: t('tpl.packing.addPh'),
+          from: t('tpl.packing.fromTrip'),
+        }
+      : {
+          title: t('tpl.todo.title'),
+          lead: t('tpl.todo.lead'),
+          placeholder: t('tpl.todo.addPh'),
+          from: t('tpl.todo.fromTrip'),
+        }
 
   const filled = rows.filter((r) => r.label.trim())
 
@@ -62,7 +62,7 @@ export function ChecklistTemplateSheet({ kind, onClose, fromTrip }: ChecklistTem
       footer={
         <>
           <button className="btn btn--soft" onClick={onClose}>
-            キャンセル
+            {t('common.cancel')}
           </button>
           <button
             className="btn btn--primary"
@@ -71,12 +71,12 @@ export function ChecklistTemplateSheet({ kind, onClose, fromTrip }: ChecklistTem
                 kind,
                 rows.map((r) => r.label),
               )
-              toast('テンプレートを保存しました')
+              toast(t('tpl.saved'))
               onClose()
             }}
           >
             <Icon name="check" size={17} strokeWidth={2.4} />
-            保存する
+            {t('common.save')}
           </button>
         </>
       }
@@ -93,7 +93,7 @@ export function ChecklistTemplateSheet({ kind, onClose, fromTrip }: ChecklistTem
                 className="tpl__arrow tpl__arrow--up"
                 onClick={() => move(i, -1)}
                 disabled={i === 0}
-                aria-label="ひとつ上へ"
+                aria-label={t('tpl.up')}
               >
                 <Icon name="down" size={13} strokeWidth={2.6} />
               </button>
@@ -101,7 +101,7 @@ export function ChecklistTemplateSheet({ kind, onClose, fromTrip }: ChecklistTem
                 className="tpl__arrow"
                 onClick={() => move(i, 1)}
                 disabled={i === rows.length - 1}
-                aria-label="ひとつ下へ"
+                aria-label={t('tpl.down')}
               >
                 <Icon name="down" size={13} strokeWidth={2.6} />
               </button>
@@ -109,7 +109,7 @@ export function ChecklistTemplateSheet({ kind, onClose, fromTrip }: ChecklistTem
             <input
               className="input tpl__input"
               value={row.label}
-              placeholder="項目名"
+              placeholder={t('tpl.itemPh')}
               onChange={(e) =>
                 setRows((r) => r.map((x) => (x.id === row.id ? { ...x, label: e.target.value } : x)))
               }
@@ -118,7 +118,7 @@ export function ChecklistTemplateSheet({ kind, onClose, fromTrip }: ChecklistTem
               className="iconbtn iconbtn--plain iconbtn--danger"
               style={{ width: 34, height: 34 }}
               onClick={() => setRows((r) => r.filter((x) => x.id !== row.id))}
-              aria-label="この項目を削除"
+              aria-label={t('tpl.removeAria')}
             >
               <Icon name="close" size={15} strokeWidth={2.2} />
             </button>
@@ -143,7 +143,7 @@ export function ChecklistTemplateSheet({ kind, onClose, fromTrip }: ChecklistTem
         />
         <button className="btn btn--soft btn--sm" type="submit" disabled={!input.trim()}>
           <Icon name="plus" size={15} strokeWidth={2.6} />
-          追加
+          {t('common.add')}
         </button>
       </form>
 
@@ -155,7 +155,7 @@ export function ChecklistTemplateSheet({ kind, onClose, fromTrip }: ChecklistTem
           onClick={() => setRows(factoryTemplate(kind).map((label) => ({ id: uid('tp_'), label })))}
         >
           <Icon name="sparkle" size={15} />
-          はじめの内容にもどす
+          {t('tpl.reset')}
         </button>
         {fromTrip && fromTrip.length > 0 ? (
           <button
@@ -167,7 +167,7 @@ export function ChecklistTemplateSheet({ kind, onClose, fromTrip }: ChecklistTem
           </button>
         ) : null}
         <span className="tiny muted" style={{ marginLeft: 'auto' }}>
-          {filled.length} 項目
+          {t('common.items', { n: filled.length })}
         </span>
       </div>
     </Sheet>

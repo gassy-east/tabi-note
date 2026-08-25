@@ -2,15 +2,18 @@ import { useMemo, useState } from 'react'
 import { Icon } from '../components/Icon'
 import { TripFormSheet } from '../components/TripFormSheet'
 import { SettingsSheet } from '../components/SettingsSheet'
+import { LanguageSheet } from '../components/LanguageSheet'
 import { useStore } from '../state/store'
 import { usePhoto } from '../state/photos'
 import { theme } from '../lib/catalog'
 import { daysUntil, formatDot, nightsBetween, todayIso } from '../lib/date'
 import { useScrolled } from '../lib/hooks'
 import { navigate } from '../App'
+import { getLang, useT } from '../i18n'
 import type { Trip } from '../types'
 
 function TripCard({ trip, index }: { trip: Trip; index: number }) {
+  const t = useT()
   const cover = usePhoto(trip.coverPhotoId)
   const th = theme(trip.theme)
   const left = daysUntil(trip.startDate)
@@ -18,6 +21,10 @@ function TripCard({ trip, index }: { trip: Trip; index: number }) {
   const plans = trip.days.reduce((n, d) => n + d.activities.length, 0)
   const past = trip.endDate < todayIso()
   const ongoing = !past && left !== null && left <= 0
+
+  const meta = [t('home.card.daysCount', { n: days }), t('home.card.plansCount', { n: plans })]
+  if (trip.members.length) meta.push(t('home.card.people', { n: trip.members.length + 1 }))
+  if (trip.memories.length) meta.push(t('home.card.memories', { n: trip.memories.length }))
 
   return (
     <button
@@ -31,19 +38,19 @@ function TripCard({ trip, index }: { trip: Trip; index: number }) {
         <div className={past ? 'trip-card__badge trip-card__badge--past' : 'trip-card__badge'}>
           {past ? (
             <>
-              <span>ARCHIVE</span>
-              <b>おつかれさま</b>
+              <span>{t('home.card.archive')}</span>
+              <b>{t('home.card.archiveLabel')}</b>
             </>
           ) : ongoing ? (
             <>
-              <span>NOW</span>
-              <b>旅の途中</b>
+              <span>{t('home.card.now')}</span>
+              <b>{t('home.card.nowLabel')}</b>
             </>
           ) : (
             <>
-              <span>あと</span>
+              <span>{t('home.card.left')}</span>
               <b>{left}</b>
-              <span>DAYS</span>
+              <span>{t('home.card.days')}</span>
             </>
           )}
         </div>
@@ -62,11 +69,7 @@ function TripCard({ trip, index }: { trip: Trip; index: number }) {
           <div className="trip-card__date">
             {formatDot(trip.startDate)} — {formatDot(trip.endDate)}
           </div>
-          <div className="trip-card__counts">
-            {days}日間・予定 {plans}件
-            {trip.members.length ? `・${trip.members.length + 1}人` : ''}
-            {trip.memories.length > 0 ? `・思い出 ${trip.memories.length}枚` : ''}
-          </div>
+          <div className="trip-card__counts">{meta.join('・')}</div>
         </div>
         <span className="iconbtn iconbtn--plain" aria-hidden="true">
           <Icon name="right" size={18} strokeWidth={2.2} />
@@ -77,15 +80,18 @@ function TripCard({ trip, index }: { trip: Trip; index: number }) {
 }
 
 export function Home() {
+  const t = useT()
+  const lang = getLang()
   const { trips } = useStore()
   const [creating, setCreating] = useState(false)
   const [settings, setSettings] = useState(false)
+  const [language, setLanguage] = useState(false)
   const scrolled = useScrolled()
 
   const { upcoming, past } = useMemo(() => {
     const today = todayIso()
-    const up = trips.filter((t) => t.endDate >= today)
-    const old = trips.filter((t) => t.endDate < today)
+    const up = trips.filter((x) => x.endDate >= today)
+    const old = trips.filter((x) => x.endDate < today)
     up.sort((a, b) => a.startDate.localeCompare(b.startDate))
     return { upcoming: up, past: old }
   }, [trips])
@@ -93,15 +99,19 @@ export function Home() {
   const nextTrip = upcoming[0]
   const nextLeft = nextTrip ? daysUntil(nextTrip.startDate) : null
   const totalPlans = trips.reduce(
-    (n, t) => n + t.days.reduce((m, d) => m + d.activities.length, 0),
+    (n, x) => n + x.days.reduce((m, d) => m + d.activities.length, 0),
     0,
   )
 
   return (
     <>
       <header className={scrolled ? 'topbar is-scrolled' : 'topbar'}>
-        <span className="topbar__title">たびノート</span>
-        <button className="iconbtn" onClick={() => setSettings(true)} aria-label="設定">
+        <span className="topbar__title">{t('app.name')}</span>
+        <button className="langbtn" onClick={() => setLanguage(true)} aria-label={t('lang.aria')}>
+          <Icon name="compass" size={15} strokeWidth={2.2} />
+          {lang.toUpperCase()}
+        </button>
+        <button className="iconbtn" onClick={() => setSettings(true)} aria-label={t('common.settings')}>
           <Icon name="dots" size={19} />
         </button>
       </header>
@@ -113,23 +123,21 @@ export function Home() {
             TABI NOTE
           </span>
           <h1 className="hero__title">
-            つぎの旅は、
+            {t('home.title1')}
             <br />
-            <em>どこへ行こう。</em>
+            <em>{t('home.title2')}</em>
           </h1>
-          <p className="hero__sub">
-            行きたい場所をならべて、写真とメモを添えて。できあがったらしおりに書き出せます。
-          </p>
+          <p className="hero__sub">{t('home.sub')}</p>
           <div className="hero__stats">
             <span className="stat-chip">
-              旅の数 <b>{trips.length}</b>
+              {t('home.stat.trips')} <b>{trips.length}</b>
             </span>
             <span className="stat-chip">
-              予定 <b>{totalPlans}</b>
+              {t('home.stat.plans')} <b>{totalPlans}</b>
             </span>
             {nextLeft != null && nextLeft > 0 ? (
               <span className="stat-chip">
-                つぎの出発まで <b>{nextLeft}</b> 日
+                {t('home.stat.countdown')} <b>{nextLeft}</b> {t('home.stat.days', { n: nextLeft })}
               </span>
             ) : null}
           </div>
@@ -140,19 +148,15 @@ export function Home() {
             <div className="empty__icon">
               <Icon name="suitcase" size={30} strokeWidth={1.8} />
             </div>
-            <h3>まだ旅の予定がありません</h3>
-            <p>
-              行き先と日程を決めるところから。
-              <br />
-              1 分でしおりの土台ができます。
-            </p>
+            <h3>{t('home.empty.title')}</h3>
+            <p style={{ whiteSpace: 'pre-line' }}>{t('home.empty.body')}</p>
             <button
               className="btn btn--primary"
               style={{ marginTop: 18 }}
               onClick={() => setCreating(true)}
             >
               <Icon name="plus" size={17} strokeWidth={2.4} />
-              最初の旅をつくる
+              {t('home.empty.cta')}
             </button>
           </div>
         ) : null}
@@ -161,12 +165,12 @@ export function Home() {
           <section style={{ marginTop: 8 }}>
             <h2 className="section-title" style={{ marginBottom: 14 }}>
               <Icon name="plane" size={17} />
-              これからの旅
+              {t('home.section.upcoming')}
               <i className="section-title__line" />
             </h2>
             <div className="trip-grid">
-              {upcoming.map((t, i) => (
-                <TripCard key={t.id} trip={t} index={i} />
+              {upcoming.map((x, i) => (
+                <TripCard key={x.id} trip={x} index={i} />
               ))}
             </div>
           </section>
@@ -176,12 +180,12 @@ export function Home() {
           <section style={{ marginTop: 34 }}>
             <h2 className="section-title" style={{ marginBottom: 14 }}>
               <Icon name="book" size={17} />
-              旅のきろく
+              {t('home.section.past')}
               <i className="section-title__line" />
             </h2>
             <div className="trip-grid">
-              {past.map((t, i) => (
-                <TripCard key={t.id} trip={t} index={i} />
+              {past.map((x, i) => (
+                <TripCard key={x.id} trip={x} index={i} />
               ))}
             </div>
           </section>
@@ -191,7 +195,7 @@ export function Home() {
       {trips.length > 0 ? (
         <button className="fab" onClick={() => setCreating(true)}>
           <Icon name="plus" size={20} strokeWidth={2.6} />
-          新しい旅
+          {t('home.fab')}
         </button>
       ) : null}
 
@@ -202,6 +206,7 @@ export function Home() {
         />
       ) : null}
       {settings ? <SettingsSheet onClose={() => setSettings(false)} /> : null}
+      {language ? <LanguageSheet onClose={() => setLanguage(false)} /> : null}
     </>
   )
 }

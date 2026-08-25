@@ -1,6 +1,7 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import { Icon } from './Icon'
 import { usePhoto } from '../state/photos'
+import { useT } from '../i18n'
 
 interface LightboxProps {
   photoIds: string[]
@@ -12,6 +13,7 @@ interface LightboxProps {
 }
 
 export function Lightbox({ photoIds, index, onIndexChange, onClose, children }: LightboxProps) {
+  const t = useT()
   const url = usePhoto(photoIds[index] ?? null)
   const touchX = useRef<number | null>(null)
 
@@ -40,7 +42,7 @@ export function Lightbox({ photoIds, index, onIndexChange, onClose, children }: 
       className="lightbox"
       role="dialog"
       aria-modal="true"
-      aria-label="写真を表示"
+      aria-label={t('album.viewerAria')}
       onTouchStart={(e) => {
         touchX.current = e.touches[0].clientX
       }}
@@ -55,7 +57,7 @@ export function Lightbox({ photoIds, index, onIndexChange, onClose, children }: 
         <span className="lightbox__count num">
           {index + 1} / {photoIds.length}
         </span>
-        <button className="lightbox__icon" onClick={onClose} aria-label="閉じる">
+        <button className="lightbox__icon" onClick={onClose} aria-label={t('common.close')}>
           <Icon name="close" size={20} strokeWidth={2.2} />
         </button>
       </div>
@@ -67,13 +69,13 @@ export function Lightbox({ photoIds, index, onIndexChange, onClose, children }: 
         }}
       >
         {index > 0 ? (
-          <button className="lightbox__nav lightbox__nav--prev" onClick={() => go(-1)} aria-label="前の写真">
+          <button className="lightbox__nav lightbox__nav--prev" onClick={() => go(-1)} aria-label={t('album.prev')}>
             <Icon name="left" size={22} strokeWidth={2.2} />
           </button>
         ) : null}
         {url ? <img src={url} alt="" className="lightbox__img" /> : <div className="spinner" />}
         {index < photoIds.length - 1 ? (
-          <button className="lightbox__nav lightbox__nav--next" onClick={() => go(1)} aria-label="次の写真">
+          <button className="lightbox__nav lightbox__nav--next" onClick={() => go(1)} aria-label={t('album.next')}>
             <Icon name="right" size={22} strokeWidth={2.2} />
           </button>
         ) : null}

@@ -1,3 +1,5 @@
+import { t } from '../i18n'
+
 const MAX_EDGE = 1600
 const QUALITY = 0.82
 
@@ -21,7 +23,7 @@ export async function processImageFile(file: File): Promise<ProcessedImage> {
   canvas.width = width
   canvas.height = height
   const ctx = canvas.getContext('2d')
-  if (!ctx) throw new Error('画像を処理できませんでした')
+  if (!ctx) throw new Error(t('photo.failedProcess'))
   ctx.fillStyle = '#ffffff'
   ctx.fillRect(0, 0, width, height)
   ctx.drawImage(bitmap as CanvasImageSource, 0, 0, width, height)
@@ -43,7 +45,7 @@ async function loadBitmap(file: File): Promise<ImageBitmap | HTMLImageElement> {
     return await new Promise<HTMLImageElement>((resolve, reject) => {
       const img = new Image()
       img.onload = () => resolve(img)
-      img.onerror = () => reject(new Error('この形式の画像は読み込めませんでした'))
+      img.onerror = () => reject(new Error(t('photo.badFormat')))
       img.src = url
     })
   } finally {

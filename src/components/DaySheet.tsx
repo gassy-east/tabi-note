@@ -3,7 +3,8 @@ import { Sheet } from './Sheet'
 import { Icon } from './Icon'
 import { toast } from './Toast'
 import { updateDay } from '../state/store'
-import { formatJp } from '../lib/date'
+import { formatDate } from '../lib/date'
+import { useT } from '../i18n'
 import type { Day } from '../types'
 
 interface DaySheetProps {
@@ -14,54 +15,55 @@ interface DaySheetProps {
 }
 
 export function DaySheet({ tripId, day, index, onClose }: DaySheetProps) {
+  const t = useT()
   const [title, setTitle] = useState(day.title)
   const [memo, setMemo] = useState(day.memo)
 
   return (
     <Sheet
-      title={`DAY ${index + 1}・${formatJp(day.date)}`}
+      title={`${t('day.label')} ${index + 1}・${formatDate(day.date)}`}
       onClose={onClose}
       footer={
         <>
           <button className="btn btn--soft" onClick={onClose}>
-            キャンセル
+            {t('common.cancel')}
           </button>
           <button
             className="btn btn--primary"
             onClick={() => {
               updateDay(tripId, day.id, { title: title.trim(), memo })
-              toast('この日の情報を保存しました')
+              toast(t('day.saved'))
               onClose()
             }}
           >
             <Icon name="check" size={17} strokeWidth={2.4} />
-            保存する
+            {t('common.save')}
           </button>
         </>
       }
     >
       <div className="field">
         <label className="field__label" htmlFor="day-title">
-          <Icon name="compass" size={14} /> この日のテーマ
+          <Icon name="compass" size={14} /> {t('day.sheet.title')}
         </label>
         <input
           id="day-title"
           className="input"
           value={title}
-          placeholder="嵐山さんぽと湯豆腐"
+          placeholder={t('day.sheet.titlePh')}
           onChange={(e) => setTitle(e.target.value)}
           autoFocus
         />
       </div>
       <div className="field">
         <label className="field__label" htmlFor="day-memo">
-          <Icon name="book" size={14} /> この日のメモ
+          <Icon name="book" size={14} /> {t('day.sheet.memo')}
         </label>
         <textarea
           id="day-memo"
           className="textarea"
           value={memo}
-          placeholder="朝は冷えるので上着を。バス一日券を買うと得。"
+          placeholder={t('day.sheet.memoPh')}
           onChange={(e) => setMemo(e.target.value)}
         />
       </div>

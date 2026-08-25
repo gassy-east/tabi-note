@@ -13,6 +13,7 @@ import { photosDb, tripsDb } from '../lib/db'
 import { addDays, nightsBetween, todayIso } from '../lib/date'
 import { moveItem, uid } from '../lib/util'
 import { getTemplate } from './settings'
+import { t } from '../i18n'
 
 interface StoreState {
   loaded: boolean
@@ -59,6 +60,7 @@ function sortTrips(trips: Trip[]): Trip[] {
 export function normalizeTrip(trip: Trip): Trip {
   return {
     ...trip,
+    timeDiff: typeof trip.timeDiff === 'number' ? trip.timeDiff : 0,
     todos: trip.todos ?? [],
     packing: trip.packing ?? [],
     memories: trip.memories ?? [],
@@ -66,7 +68,10 @@ export function normalizeTrip(trip: Trip): Trip {
     days: (trip.days ?? []).map((d) => ({
       ...d,
       diary: d.diary ?? '',
-      activities: d.activities ?? [],
+      activities: (d.activities ?? []).map((a) => ({
+        ...a,
+        timeDiff: a.timeDiff ?? null,
+      })),
     })),
   }
 }
@@ -104,6 +109,7 @@ export interface NewTripInput {
   startDate: string
   endDate: string
   theme: ThemeId
+  timeDiff: number
   members: string[]
   withTodoTemplate: boolean
   withPackingTemplate: boolean
@@ -118,12 +124,13 @@ export function createTrip(input: NewTripInput): string {
   const count = nightsBetween(input.startDate, input.endDate)
   const trip: Trip = {
     id: uid('trip_'),
-    title: input.title.trim() || '名前のない旅',
+    title: input.title.trim() || t('trip.untitled'),
     destination: input.destination.trim(),
     startDate: input.startDate,
     endDate: input.endDate,
     coverPhotoId: null,
     theme: input.theme,
+    timeDiff: input.timeDiff,
     members: input.members,
     memo: '',
     days: Array.from({ length: count }, (_, i) => emptyDay(addDays(input.startDate, i))),
@@ -149,7 +156,7 @@ export function duplicateTrip(id: string): string | null {
   const copy: Trip = {
     ...structuredClone(src),
     id: uid('trip_'),
-    title: src.title + ' のコピー',
+    title: src.title + t('trip.copySuffix'),
     createdAt: now,
     updatedAt: now,
   }
@@ -196,6 +203,7 @@ export interface TripMetaPatch {
   startDate: string
   endDate: string
   theme: ThemeId
+  timeDiff: number
   members: string[]
   memo: string
 }
@@ -207,7 +215,7 @@ export function updateTripMeta(id: string, patch: TripMetaPatch): void {
     while (days.length < count) days.push(emptyDay(''))
     if (days.length > count) days = days.slice(0, count)
     days = days.map((d, i) => ({ ...d, date: addDays(patch.startDate, i) }))
-    return { ...trip, ...patch, title: patch.title.trim() || '名前のない旅', days }
+    return { ...trip, ...patch, title: patch.title.trim() || t('trip.untitled'), days }
   })
 }
 
@@ -248,6 +256,7 @@ export function emptyActivity(category: CategoryId = 'sight'): Activity {
     place: '',
     memo: '',
     cost: null,
+    timeDiff: null,
     url: '',
     photoIds: [],
   }
@@ -491,6 +500,7 @@ export function newTripDefaults(): NewTripInput {
     startDate: start,
     endDate: addDays(start, 2),
     theme: 'sunset',
+    timeDiff: 0,
     members: [],
     withTodoTemplate: true,
     withPackingTemplate: true,

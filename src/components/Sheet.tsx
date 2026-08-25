@@ -1,5 +1,6 @@
 import { useEffect, type ReactNode } from 'react'
 import { Icon } from './Icon'
+import { useT } from '../i18n'
 
 interface SheetProps {
   title: string
@@ -12,6 +13,7 @@ interface SheetProps {
 let openCount = 0
 
 export function Sheet({ title, onClose, children, footer, headerRight }: SheetProps) {
+  const t = useT()
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
@@ -39,7 +41,7 @@ export function Sheet({ title, onClose, children, footer, headerRight }: SheetPr
         <div className="sheet__head">
           <h2 className="sheet__title">{title}</h2>
           {headerRight}
-          <button className="iconbtn iconbtn--plain" onClick={onClose} aria-label="閉じる">
+          <button className="iconbtn iconbtn--plain" onClick={onClose} aria-label={t('common.close')}>
             <Icon name="close" size={19} strokeWidth={2.1} />
           </button>
         </div>
@@ -53,7 +55,7 @@ export function Sheet({ title, onClose, children, footer, headerRight }: SheetPr
 interface ConfirmProps {
   title: string
   message: string
-  confirmLabel?: string
+  confirmLabel: string
   danger?: boolean
   onConfirm: () => void
   onClose: () => void
@@ -62,11 +64,12 @@ interface ConfirmProps {
 export function Confirm({
   title,
   message,
-  confirmLabel = '実行する',
+  confirmLabel,
   danger,
   onConfirm,
   onClose,
 }: ConfirmProps) {
+  const t = useT()
   return (
     <Sheet
       title={title}
@@ -74,7 +77,7 @@ export function Confirm({
       footer={
         <>
           <button className="btn btn--soft" onClick={onClose}>
-            やめる
+            {t('detail.confirm.cancel')}
           </button>
           <button
             className={danger ? 'btn btn--danger' : 'btn btn--primary'}

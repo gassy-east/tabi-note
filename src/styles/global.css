@@ -2358,3 +2358,50 @@ img {
   opacity: 0.55;
   pointer-events: none;
 }
+
+/* 言語切り替えボタン（ホームのヘッダー） */
+.langbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 34px;
+  padding: 0 13px 0 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(231, 222, 208, 0.9);
+  color: var(--ink-2);
+  font-family: var(--font-num);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  flex: none;
+  transition:
+    transform 0.18s var(--ease-spring),
+    background-color 0.2s,
+    color 0.2s;
+}
+
+.langbtn:hover {
+  background: #fff;
+  color: var(--ink);
+}
+
+.langbtn:active {
+  transform: scale(0.94);
+}
+
+/* 現地時間の下に出す自宅時間 */
+.tl-item__home {
+  font-family: var(--font-num);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-4);
+  letter-spacing: 0.02em;
+  margin-top: -3px;
+  margin-bottom: 4px;
+}
+
+.tl-item__home i {
+  font-style: normal;
+  opacity: 0.75;
+}

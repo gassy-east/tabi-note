@@ -3,10 +3,11 @@ import { Sheet, Confirm } from './Sheet'
 import { Icon } from './Icon'
 import { PhotoUploader } from './PhotoUploader'
 import { toast } from './Toast'
-import { CATEGORIES, category } from '../lib/catalog'
+import { CATEGORIES, category, categoryLabel } from '../lib/catalog'
 import { mapSearchUrl } from '../lib/maps'
-import { formatJp } from '../lib/date'
+import { formatDate, formatOffset, offsetChoices, shiftTime } from '../lib/date'
 import { addActivity, moveActivityToDay, removeActivity, updateActivity } from '../state/store'
+import { useT } from '../i18n'
 import type { Activity, CategoryId, Day } from '../types'
 
 interface ActivitySheetProps {
@@ -15,6 +16,8 @@ interface ActivitySheetProps {
   days: Day[]
   activity: Activity
   isNew: boolean
+  /** 旅全体の時差。予定側で上書きできる */
+  tripTimeDiff: number
   onClose: () => void
 }
 
@@ -24,13 +27,17 @@ export function ActivitySheet({
   days,
   activity,
   isNew,
+  tripTimeDiff,
   onClose,
 }: ActivitySheetProps) {
+  const t = useT()
   const [draft, setDraft] = useState<Activity>(activity)
   const [targetDay, setTargetDay] = useState(dayId)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
   const cat = category(draft.category)
+  const effectiveDiff = draft.timeDiff ?? tripTimeDiff
+  const home = draft.time && effectiveDiff ? shiftTime(draft.time, -effectiveDiff) : null
 
   function patch(next: Partial<Activity>) {
     setDraft((d) => ({ ...d, ...next }))
@@ -40,14 +47,14 @@ export function ActivitySheet({
     const cleaned: Activity = { ...draft, title: draft.title.trim() }
     if (isNew) {
       addActivity(tripId, dayId, cleaned)
-      toast('予定を追加しました')
+      toast(t('act.added'))
     } else {
       updateActivity(tripId, dayId, cleaned)
       if (targetDay !== dayId) {
         moveActivityToDay(tripId, dayId, targetDay, cleaned.id)
-        toast('別の日へ移動しました')
+        toast(t('act.moved'))
       } else {
-        toast('予定を更新しました')
+        toast(t('act.updated'))
       }
     }
     onClose()
@@ -56,14 +63,14 @@ export function ActivitySheet({
   return (
     <>
       <Sheet
-        title={isNew ? '予定を追加' : '予定を編集'}
+        title={isNew ? t('act.add') : t('act.edit')}
         onClose={onClose}
         headerRight={
           isNew ? undefined : (
             <button
               className="iconbtn iconbtn--plain iconbtn--danger"
               onClick={() => setConfirmDelete(true)}
-              aria-label="この予定を削除"
+              aria-label={t('act.delete.title')}
             >
               <Icon name="trash" size={18} />
             </button>
@@ -72,18 +79,18 @@ export function ActivitySheet({
         footer={
           <>
             <button className="btn btn--soft" onClick={onClose}>
-              キャンセル
+              {t('common.cancel')}
             </button>
             <button className="btn btn--primary" onClick={save}>
               <Icon name="check" size={17} strokeWidth={2.4} />
-              {isNew ? '追加する' : '保存する'}
+              {isNew ? t('common.add') : t('common.save')}
             </button>
           </>
         }
       >
         <div className="field">
           <span className="field__label">
-            <Icon name="sparkle" size={14} /> 種別
+            <Icon name="sparkle" size={14} /> {t('act.field.category')}
           </span>
           <div className="catpick">
             {CATEGORIES.map((c) => {
@@ -93,15 +100,11 @@ export function ActivitySheet({
                   key={c.id}
                   type="button"
                   className="catpick__item"
-                  style={
-                    on
-                      ? { background: c.tint, borderColor: c.color, color: c.color }
-                      : undefined
-                  }
+                  style={on ? { background: c.tint, borderColor: c.color, color: c.color } : undefined}
                   onClick={() => patch({ category: c.id as CategoryId })}
                 >
                   <Icon name={c.icon} size={15} strokeWidth={2} />
-                  {c.label}
+                  {categoryLabel(c.id)}
                 </button>
               )
             })}
@@ -110,13 +113,13 @@ export function ActivitySheet({
 
         <div className="field">
           <label className="field__label" htmlFor="act-title">
-            <Icon name={cat.icon} size={14} /> やること・行き先
+            <Icon name={cat.icon} size={14} /> {t('act.field.title')}
           </label>
           <input
             id="act-title"
             className="input"
             value={draft.title}
-            placeholder="伏見稲荷大社で千本鳥居さんぽ"
+            placeholder={t('act.field.titlePh')}
             onChange={(e) => patch({ title: e.target.value })}
             autoFocus
           />
@@ -124,7 +127,7 @@ export function ActivitySheet({
 
         <div className="field">
           <span className="field__label">
-            <Icon name="clock" size={14} /> 時刻（任意）
+            <Icon name="clock" size={14} /> {t('act.field.time')}
           </span>
           <div className="field-row">
             <input
@@ -132,27 +135,74 @@ export function ActivitySheet({
               type="time"
               value={draft.time}
               onChange={(e) => patch({ time: e.target.value })}
-              aria-label="開始時刻"
+              aria-label={t('act.field.timeStart')}
             />
             <input
               className="input num"
               type="time"
               value={draft.endTime}
               onChange={(e) => patch({ endTime: e.target.value })}
-              aria-label="終了時刻"
+              aria-label={t('act.field.timeEnd')}
             />
           </div>
+
+          <label className="field__label" style={{ marginTop: 12 }} htmlFor="act-tz">
+            <Icon name="plane" size={14} /> {t('tz.label')}
+          </label>
+          <select
+            id="act-tz"
+            className="select num"
+            value={draft.timeDiff == null ? 'trip' : String(draft.timeDiff)}
+            onChange={(e) =>
+              patch({ timeDiff: e.target.value === 'trip' ? null : Number(e.target.value) })
+            }
+          >
+            <option value="trip">
+              {t('tz.followTrip', {
+                v: tripTimeDiff === 0 ? t('tz.none') : formatOffset(tripTimeDiff),
+              })}
+            </option>
+            {offsetChoices().map((v) => (
+              <option key={v} value={v}>
+                {v === 0 ? t('tz.none') : formatOffset(v)}
+              </option>
+            ))}
+          </select>
+          <p className="tiny muted" style={{ marginTop: 6 }}>
+            {effectiveDiff ? t('tz.hint') : t('tz.tripHint')}
+          </p>
+          {home ? (
+            <p
+              className="tiny"
+              style={{
+                marginTop: 6,
+                color: 'var(--indigo)',
+                background: 'var(--indigo-soft)',
+                padding: '8px 11px',
+                borderRadius: 10,
+                fontWeight: 700,
+              }}
+            >
+              {t('tz.example', {
+                local: draft.time,
+                home:
+                  home.dayShift === 0
+                    ? home.time
+                    : `${home.time}（${home.dayShift < 0 ? t('tz.prevDay') : t('tz.nextDay')}）`,
+              })}
+            </p>
+          ) : null}
         </div>
 
         <div className="field">
           <label className="field__label" htmlFor="act-place">
-            <Icon name="pin" size={14} /> 場所（地図リンクになります）
+            <Icon name="pin" size={14} /> {t('act.field.place')}
           </label>
           <input
             id="act-place"
             className="input"
             value={draft.place}
-            placeholder="京都市伏見区深草藪之内町68"
+            placeholder={t('act.field.placePh')}
             onChange={(e) => patch({ place: e.target.value })}
           />
           {draft.place ? (
@@ -164,20 +214,20 @@ export function ActivitySheet({
               rel="noreferrer"
             >
               <Icon name="pin" size={15} />
-              Google マップで開く
+              {t('act.openMap')}
             </a>
           ) : null}
         </div>
 
         <div className="field">
           <label className="field__label" htmlFor="act-memo">
-            <Icon name="book" size={14} /> メモ
+            <Icon name="book" size={14} /> {t('act.field.memo')}
           </label>
           <textarea
             id="act-memo"
             className="textarea"
             value={draft.memo}
-            placeholder="予約番号、行き方、食べたいもの、持ち物など"
+            placeholder={t('act.field.memoPh')}
             onChange={(e) => patch({ memo: e.target.value })}
           />
         </div>
@@ -185,7 +235,7 @@ export function ActivitySheet({
         <div className="field-row">
           <div className="field">
             <label className="field__label" htmlFor="act-cost">
-              <Icon name="coin" size={14} /> 費用（円）
+              <Icon name="coin" size={14} /> {t('act.field.cost')}
             </label>
             <input
               id="act-cost"
@@ -201,7 +251,7 @@ export function ActivitySheet({
           </div>
           <div className="field">
             <label className="field__label" htmlFor="act-url">
-              <Icon name="link" size={14} /> リンク
+              <Icon name="link" size={14} /> {t('act.field.url')}
             </label>
             <input
               id="act-url"
@@ -217,7 +267,7 @@ export function ActivitySheet({
 
         <div className="field">
           <span className="field__label">
-            <Icon name="image" size={14} /> 写真
+            <Icon name="image" size={14} /> {t('album.photo')}
           </span>
           <PhotoUploader
             photoIds={draft.photoIds}
@@ -229,7 +279,7 @@ export function ActivitySheet({
         {!isNew && days.length > 1 ? (
           <div className="field">
             <label className="field__label" htmlFor="act-day">
-              <Icon name="calendar" size={14} /> 予定を移す日
+              <Icon name="calendar" size={14} /> {t('act.field.moveDay')}
             </label>
             <select
               id="act-day"
@@ -239,7 +289,7 @@ export function ActivitySheet({
             >
               {days.map((d, i) => (
                 <option key={d.id} value={d.id}>
-                  DAY {i + 1}　{formatJp(d.date)}
+                  {t('day.label')} {i + 1}　{formatDate(d.date)}
                   {d.title ? `　${d.title}` : ''}
                 </option>
               ))}
@@ -250,14 +300,14 @@ export function ActivitySheet({
 
       {confirmDelete ? (
         <Confirm
-          title="この予定を削除しますか？"
-          message={`「${draft.title || '無題の予定'}」と、添えた写真も一緒に削除されます。`}
-          confirmLabel="削除する"
+          title={t('act.delete.title')}
+          message={t('act.delete.body', { title: draft.title || t('act.untitled') })}
+          confirmLabel={t('detail.delete.confirm')}
           danger
           onClose={() => setConfirmDelete(false)}
           onConfirm={() => {
             removeActivity(tripId, dayId, draft.id)
-            toast('予定を削除しました')
+            toast(t('act.deleted'))
             onClose()
           }}
         />

@@ -17,8 +17,9 @@ import {
   toggleTodo,
   updateTodo,
 } from '../state/store'
-import { daysUntil, formatJp, todayIso } from '../lib/date'
+import { daysUntil, formatDate, todayIso } from '../lib/date'
 import { clsx } from '../lib/util'
+import { useT } from '../i18n'
 import type { TodoItem, Trip } from '../types'
 
 /* ------------------------------------------------ 共通のメニュー */
@@ -42,6 +43,7 @@ function ListMenu({
   onClearChecks,
   onClose,
 }: ListMenuProps) {
+  const t = useT()
   const [template, setTemplateOpen] = useState(false)
   const items = useTemplate(kind)
 
@@ -56,9 +58,7 @@ function ListMenu({
               const added = onApplyTemplate(getTemplate(kind))
               onClose()
               toast(
-                added > 0
-                  ? `テンプレートから${added}項目を追加しました`
-                  : '追加する項目はありませんでした',
+                added > 0 ? t('list.added', { n: added }) : t('list.nothingAdded'),
                 added > 0 ? 'success' : 'info',
               )
             }}
@@ -67,8 +67,8 @@ function ListMenu({
               <Icon name="download" size={18} />
             </span>
             <span>
-              テンプレートから読み込む
-              <small>まだ無い項目だけを足します（{items.length} 項目）</small>
+              {t('list.loadTemplate')}
+              <small>{t('list.loadTemplateSub', { n: items.length })}</small>
             </span>
           </button>
           <button
@@ -77,15 +77,15 @@ function ListMenu({
             onClick={() => {
               setTemplate(kind, labels)
               onClose()
-              toast('このリストをテンプレートに保存しました')
+              toast(t('list.savedTemplate'))
             }}
           >
             <span className="menu__icon">
               <Icon name="upload" size={18} />
             </span>
             <span>
-              このリストをテンプレートに保存
-              <small>次の旅から、この内容が初期値になります</small>
+              {t('list.saveTemplate')}
+              <small>{t('list.saveTemplateSub')}</small>
             </span>
           </button>
           <button
@@ -99,8 +99,8 @@ function ListMenu({
               <Icon name="pencil" size={18} />
             </span>
             <span>
-              テンプレートを編集
-              <small>並び順や項目名を整える</small>
+              {t('list.editTemplate')}
+              <small>{t('list.editTemplateSub')}</small>
             </span>
           </button>
           <button
@@ -109,26 +109,22 @@ function ListMenu({
             onClick={() => {
               onClearChecks()
               onClose()
-              toast('チェックをすべて外しました')
+              toast(t('list.cleared'))
             }}
           >
             <span className="menu__icon">
               <Icon name="check" size={18} />
             </span>
             <span>
-              チェックを全部外す
-              <small>あとでもう一度使いたいときに</small>
+              {t('list.clearChecks')}
+              <small>{t('list.clearChecksSub')}</small>
             </span>
           </button>
         </div>
       </Sheet>
 
       {template ? (
-        <ChecklistTemplateSheet
-          kind={kind}
-          fromTrip={labels}
-          onClose={() => setTemplateOpen(false)}
-        />
+        <ChecklistTemplateSheet kind={kind} fromTrip={labels} onClose={() => setTemplateOpen(false)} />
       ) : null}
     </>
   )
@@ -148,41 +144,24 @@ function dueState(item: TodoItem): DueState {
   return 'later'
 }
 
-function dueLabel(item: TodoItem): string {
-  const left = daysUntil(item.due)
-  if (left == null) return ''
-  if (item.done) return formatJp(item.due)
-  if (left < 0) return `${formatJp(item.due)}・${-left}日すぎ`
-  if (left === 0) return '今日まで'
-  if (left === 1) return '明日まで'
-  return `${formatJp(item.due)}まで`
-}
-
-function TodoSheet({
-  trip,
-  item,
-  onClose,
-}: {
-  trip: Trip
-  item: TodoItem
-  onClose: () => void
-}) {
+function TodoSheet({ trip, item, onClose }: { trip: Trip; item: TodoItem; onClose: () => void }) {
+  const t = useT()
   const [label, setLabel] = useState(item.label)
   const [due, setDue] = useState(item.due)
 
   return (
     <Sheet
-      title="やることを編集"
+      title={t('todo.edit')}
       onClose={onClose}
       headerRight={
         <button
           className="iconbtn iconbtn--plain iconbtn--danger"
           onClick={() => {
             removeTodo(trip.id, item.id)
-            toast('やることを削除しました')
+            toast(t('todo.deleted'))
             onClose()
           }}
-          aria-label="この項目を削除"
+          aria-label={t('tpl.removeAria')}
         >
           <Icon name="trash" size={18} />
         </button>
@@ -190,7 +169,7 @@ function TodoSheet({
       footer={
         <>
           <button className="btn btn--soft" onClick={onClose}>
-            キャンセル
+            {t('common.cancel')}
           </button>
           <button
             className="btn btn--primary"
@@ -200,14 +179,14 @@ function TodoSheet({
             }}
           >
             <Icon name="check" size={17} strokeWidth={2.4} />
-            保存する
+            {t('common.save')}
           </button>
         </>
       }
     >
       <div className="field">
         <label className="field__label" htmlFor="todo-label">
-          <Icon name="check" size={14} /> やること
+          <Icon name="check" size={14} /> {t('todo.field.label')}
         </label>
         <input
           id="todo-label"
@@ -219,7 +198,7 @@ function TodoSheet({
       </div>
       <div className="field">
         <label className="field__label" htmlFor="todo-due">
-          <Icon name="calendar" size={14} /> いつまでに（任意）
+          <Icon name="calendar" size={14} /> {t('todo.field.due')}
         </label>
         <div className="row" style={{ gap: 8 }}>
           <input
@@ -232,12 +211,12 @@ function TodoSheet({
           />
           {due ? (
             <button className="btn btn--soft btn--sm" onClick={() => setDue('')}>
-              期限なし
+              {t('todo.noDue')}
             </button>
           ) : null}
         </div>
         <p className="tiny muted" style={{ marginTop: 6 }}>
-          出発は {formatJp(trip.startDate)} です
+          {t('todo.departure', { date: formatDate(trip.startDate) })}
         </p>
       </div>
     </Sheet>
@@ -245,21 +224,36 @@ function TodoSheet({
 }
 
 export function TodoCard({ trip }: { trip: Trip }) {
+  const t = useT()
   const [input, setInput] = useState('')
   const [menu, setMenu] = useState(false)
   const [editing, setEditing] = useState<TodoItem | null>(null)
 
-  const done = trip.todos.filter((t) => t.done).length
+  const done = trip.todos.filter((x) => x.done).length
   const rate = trip.todos.length ? Math.round((done / trip.todos.length) * 100) : 0
-  const overdue = trip.todos.filter((t) => !t.done && t.due && t.due < todayIso()).length
+  const overdue = trip.todos.filter((x) => !x.done && x.due && x.due < todayIso()).length
   const left = daysUntil(trip.startDate)
+
+  function dueLabel(item: TodoItem): string {
+    const days = daysUntil(item.due)
+    if (days == null) return ''
+    const date = formatDate(item.due)
+    if (item.done) return date
+    if (days < 0) return t('todo.due.over', { date, n: -days })
+    if (days === 0) return t('todo.due.today')
+    if (days === 1) return t('todo.due.tomorrow')
+    return t('todo.due.until', { date })
+  }
+
+  const showNote =
+    trip.todos.length > 0 && (overdue > 0 || (left != null && left >= 0 && done < trip.todos.length))
 
   return (
     <section className="card pack">
       <div className="row" style={{ justifyContent: 'space-between' }}>
         <h3 className="section-title" style={{ fontSize: 15 }}>
           <Icon name="check" size={17} />
-          旅までにやること
+          {t('todo.title')}
         </h3>
         <div className="row" style={{ gap: 4 }}>
           <span className="tiny muted num">
@@ -269,7 +263,7 @@ export function TodoCard({ trip }: { trip: Trip }) {
             className="iconbtn iconbtn--plain"
             style={{ width: 32, height: 32 }}
             onClick={() => setMenu(true)}
-            aria-label="やることリストの操作"
+            aria-label={t('todo.menuAria')}
           >
             <Icon name="dots" size={17} />
           </button>
@@ -280,53 +274,50 @@ export function TodoCard({ trip }: { trip: Trip }) {
         <i style={{ width: `${rate}%` }} />
       </div>
 
-      {trip.todos.length > 0 && (overdue > 0 || (left != null && left >= 0 && done < trip.todos.length)) ? (
+      {showNote ? (
         <p className={clsx('todo__note', overdue > 0 && 'is-warn')}>
           {overdue > 0
-            ? `期限をすぎたものが ${overdue} 件あります`
+            ? t('todo.overdue', { n: overdue })
             : left === 0
-              ? '出発は今日です。残りの準備はあと少し'
-              : `出発まであと ${left} 日。残り ${trip.todos.length - done} 件`}
+              ? t('todo.leftToday')
+              : t('todo.left', { n: left ?? 0, m: trip.todos.length - done })}
         </p>
       ) : null}
 
       {trip.todos.length === 0 ? (
         <p className="tiny muted" style={{ padding: '6px 0 2px' }}>
-          予約や下調べなど、出発までに済ませることを書いておきましょう。
+          {t('todo.empty')}
         </p>
       ) : null}
 
-      {trip.todos.map((item) => {
-        const state = dueState(item)
-        return (
-          <div className="pack__item" key={item.id}>
-            <button
-              className={clsx('pack__check', item.done && 'is-on')}
-              onClick={() => toggleTodo(trip.id, item.id)}
-              aria-label={item.done ? '未チェックに戻す' : 'チェックする'}
-            >
-              <Icon name="check" size={14} strokeWidth={3} />
-            </button>
-            <button className="todo__text" onClick={() => setEditing(item)}>
-              <span className={clsx('pack__label', item.done && 'is-done')}>{item.label}</span>
-              {item.due ? (
-                <span className={clsx('todo__due', `todo__due--${state}`)}>
-                  <Icon name="calendar" size={11} strokeWidth={2.4} />
-                  {dueLabel(item)}
-                </span>
-              ) : null}
-            </button>
-            <button
-              className="iconbtn iconbtn--plain iconbtn--danger"
-              style={{ width: 30, height: 30 }}
-              onClick={() => removeTodo(trip.id, item.id)}
-              aria-label="削除"
-            >
-              <Icon name="close" size={14} strokeWidth={2.2} />
-            </button>
-          </div>
-        )
-      })}
+      {trip.todos.map((item) => (
+        <div className="pack__item" key={item.id}>
+          <button
+            className={clsx('pack__check', item.done && 'is-on')}
+            onClick={() => toggleTodo(trip.id, item.id)}
+            aria-label={item.done ? t('pack.checkOff') : t('pack.checkOn')}
+          >
+            <Icon name="check" size={14} strokeWidth={3} />
+          </button>
+          <button className="todo__text" onClick={() => setEditing(item)}>
+            <span className={clsx('pack__label', item.done && 'is-done')}>{item.label}</span>
+            {item.due ? (
+              <span className={clsx('todo__due', `todo__due--${dueState(item)}`)}>
+                <Icon name="calendar" size={11} strokeWidth={2.4} />
+                {dueLabel(item)}
+              </span>
+            ) : null}
+          </button>
+          <button
+            className="iconbtn iconbtn--plain iconbtn--danger"
+            style={{ width: 30, height: 30 }}
+            onClick={() => removeTodo(trip.id, item.id)}
+            aria-label={t('common.delete')}
+          >
+            <Icon name="close" size={14} strokeWidth={2.2} />
+          </button>
+        </div>
+      ))}
 
       <form
         className="row"
@@ -341,35 +332,33 @@ export function TodoCard({ trip }: { trip: Trip }) {
           className="input"
           style={{ padding: '9px 12px', fontSize: 14 }}
           value={input}
-          placeholder="やることを追加"
+          placeholder={t('todo.addPh')}
           onChange={(e) => setInput(e.target.value)}
         />
         <button className="btn btn--soft btn--sm" type="submit" disabled={!input.trim()}>
           <Icon name="plus" size={15} strokeWidth={2.6} />
-          追加
+          {t('common.add')}
         </button>
       </form>
 
       {menu ? (
         <ListMenu
           kind="todo"
-          title="旅までにやること"
-          labels={trip.todos.map((t) => t.label)}
+          title={t('todo.title')}
+          labels={trip.todos.map((x) => x.label)}
           doneCount={done}
           onApplyTemplate={(labels) => applyTodoTemplate(trip.id, labels)}
           onClearChecks={() =>
             replaceTodos(
               trip.id,
-              trip.todos.map((t) => ({ ...t, done: false })),
+              trip.todos.map((x) => ({ ...x, done: false })),
             )
           }
           onClose={() => setMenu(false)}
         />
       ) : null}
 
-      {editing ? (
-        <TodoSheet trip={trip} item={editing} onClose={() => setEditing(null)} />
-      ) : null}
+      {editing ? <TodoSheet trip={trip} item={editing} onClose={() => setEditing(null)} /> : null}
     </section>
   )
 }
@@ -377,6 +366,7 @@ export function TodoCard({ trip }: { trip: Trip }) {
 /* ------------------------------------------------ 持ち物リスト */
 
 export function PackingCard({ trip }: { trip: Trip }) {
+  const t = useT()
   const [input, setInput] = useState('')
   const [menu, setMenu] = useState(false)
   const done = trip.packing.filter((p) => p.done).length
@@ -387,7 +377,7 @@ export function PackingCard({ trip }: { trip: Trip }) {
       <div className="row" style={{ justifyContent: 'space-between' }}>
         <h3 className="section-title" style={{ fontSize: 15 }}>
           <Icon name="suitcase" size={17} />
-          持ち物リスト
+          {t('pack.title')}
         </h3>
         <div className="row" style={{ gap: 4 }}>
           <span className="tiny muted num">
@@ -397,7 +387,7 @@ export function PackingCard({ trip }: { trip: Trip }) {
             className="iconbtn iconbtn--plain"
             style={{ width: 32, height: 32 }}
             onClick={() => setMenu(true)}
-            aria-label="持ち物リストの操作"
+            aria-label={t('pack.menuAria')}
           >
             <Icon name="dots" size={17} />
           </button>
@@ -413,7 +403,7 @@ export function PackingCard({ trip }: { trip: Trip }) {
           <button
             className={clsx('pack__check', item.done && 'is-on')}
             onClick={() => togglePackItem(trip.id, item.id)}
-            aria-label={item.done ? '未チェックに戻す' : 'チェックする'}
+            aria-label={item.done ? t('pack.checkOff') : t('pack.checkOn')}
           >
             <Icon name="check" size={14} strokeWidth={3} />
           </button>
@@ -422,7 +412,7 @@ export function PackingCard({ trip }: { trip: Trip }) {
             className="iconbtn iconbtn--plain iconbtn--danger"
             style={{ width: 30, height: 30 }}
             onClick={() => removePackItem(trip.id, item.id)}
-            aria-label="削除"
+            aria-label={t('common.delete')}
           >
             <Icon name="close" size={14} strokeWidth={2.2} />
           </button>
@@ -442,19 +432,19 @@ export function PackingCard({ trip }: { trip: Trip }) {
           className="input"
           style={{ padding: '9px 12px', fontSize: 14 }}
           value={input}
-          placeholder="持ち物を追加"
+          placeholder={t('pack.addPh')}
           onChange={(e) => setInput(e.target.value)}
         />
         <button className="btn btn--soft btn--sm" type="submit" disabled={!input.trim()}>
           <Icon name="plus" size={15} strokeWidth={2.6} />
-          追加
+          {t('common.add')}
         </button>
       </form>
 
       {menu ? (
         <ListMenu
           kind="packing"
-          title="持ち物リスト"
+          title={t('pack.title')}
           labels={trip.packing.map((p) => p.label)}
           doneCount={done}
           onApplyTemplate={(labels) => applyPackingTemplate(trip.id, labels)}

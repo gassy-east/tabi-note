@@ -21,6 +21,8 @@ export interface Activity {
   memo: string
   /** 円。null なら未入力 */
   cost: number | null
+  /** この予定だけの時差（時間）。null なら旅の設定にしたがう */
+  timeDiff: number | null
   url: string
   photoIds: string[]
 }
@@ -70,6 +72,8 @@ export interface Trip {
   endDate: string
   coverPhotoId: string | null
   theme: ThemeId
+  /** 現地時間 − 自宅の時間（時間単位）。0 なら時差なし */
+  timeDiff: number
   members: string[]
   memo: string
   days: Day[]

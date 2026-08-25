@@ -3,6 +3,7 @@ import { Home } from './screens/Home'
 import { TripDetail } from './screens/TripDetail'
 import { ToastHost } from './components/Toast'
 import { initStore, useStore } from './state/store'
+import { applyDocumentLang, useT } from './i18n'
 
 type Route = { name: 'home' } | { name: 'trip'; id: string }
 
@@ -25,6 +26,7 @@ export function goHome(): void {
 export default function App() {
   const [route, setRoute] = useState<Route>(parseHash)
   const { loaded } = useStore()
+  const t = useT()
 
   useEffect(() => {
     void initStore()
@@ -36,12 +38,16 @@ export default function App() {
     return () => window.removeEventListener('hashchange', onHash)
   }, [])
 
+  useEffect(() => {
+    applyDocumentLang()
+  })
+
   return (
     <div className="app">
       {!loaded ? (
         <div className="loading">
           <div className="spinner" />
-          <p className="muted tiny">旅のノートをひらいています…</p>
+          <p className="muted tiny">{t('app.loading')}</p>
         </div>
       ) : route.name === 'trip' ? (
         <TripDetail tripId={route.id} />

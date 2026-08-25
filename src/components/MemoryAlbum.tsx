@@ -5,6 +5,7 @@ import { toast } from './Toast'
 import { savePhotos, usePhoto } from '../state/photos'
 import { addMemories } from '../state/store'
 import { clsx } from '../lib/util'
+import { useT } from '../i18n'
 import type { Trip } from '../types'
 
 function AlbumTile({
@@ -28,6 +29,7 @@ function AlbumTile({
 }
 
 export function MemoryAlbum({ trip }: { trip: Trip }) {
+  const t = useT()
   const inputRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
   const [openIndex, setOpenIndex] = useState<number | null>(null)
@@ -41,10 +43,10 @@ export function MemoryAlbum({ trip }: { trip: Trip }) {
       const ids = await savePhotos(Array.from(fileList))
       if (ids.length > 0) {
         addMemories(trip.id, ids)
-        toast(`思い出を${ids.length}枚追加しました`)
+        toast(t('album.added', { n: ids.length }))
       }
     } catch {
-      toast('写真を読み込めませんでした', 'error')
+      toast(t('photo.failed'), 'error')
     } finally {
       setBusy(false)
       if (inputRef.current) inputRef.current.value = ''
@@ -56,17 +58,17 @@ export function MemoryAlbum({ trip }: { trip: Trip }) {
       <div className="row" style={{ justifyContent: 'space-between', gap: 10 }}>
         <h3 className="section-title" style={{ fontSize: 15 }}>
           <Icon name="camera" size={17} />
-          思い出アルバム
+          {t('album.title')}
         </h3>
         <div className="row" style={{ gap: 8 }}>
-          {memories.length > 0 ? <span className="tiny muted num">{memories.length}枚</span> : null}
+          {memories.length > 0 ? <span className="tiny muted num">{t('album.count', { n: memories.length })}</span> : null}
           <button
             className="btn btn--soft btn--sm"
             disabled={busy}
             onClick={() => inputRef.current?.click()}
           >
             <Icon name={busy ? 'sparkle' : 'plus'} size={15} strokeWidth={2.4} />
-            {busy ? '追加中' : '写真'}
+            {busy ? t('common.adding') : t('album.photo')}
           </button>
         </div>
       </div>
@@ -76,8 +78,8 @@ export function MemoryAlbum({ trip }: { trip: Trip }) {
           <span className="album__empty-icon">
             <Icon name="image" size={24} strokeWidth={1.8} />
           </span>
-          <b>旅から帰ったら、お気に入りの一枚を</b>
-          <small>撮った写真をここに集めて、しおりの最後のページに残せます</small>
+          <b>{t('album.empty.title')}</b>
+          <small>{t('album.empty.body')}</small>
         </button>
       ) : (
         <div className="album__grid stagger">
@@ -93,7 +95,7 @@ export function MemoryAlbum({ trip }: { trip: Trip }) {
           <button
             className={clsx('album__add', busy && 'is-busy')}
             onClick={() => inputRef.current?.click()}
-            aria-label="写真を追加"
+            aria-label={t('album.addAria')}
           >
             <Icon name="plus" size={20} strokeWidth={2.4} />
           </button>

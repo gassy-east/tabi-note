@@ -1,6 +1,7 @@
 import type { Activity, Day, Memory, Trip } from '../../types'
-import { category, theme } from '../catalog'
-import { formatDot, formatJp, nightsBetween, rangeLabel, weekday } from '../date'
+import { category, categoryLabel, theme } from '../catalog'
+import { formatDate, formatDot, nightsBetween, rangeLabel, shiftTime, weekday } from '../date'
+import { t } from '../../i18n'
 import { yen } from '../util'
 import { loadPhotos, peekPhoto } from '../../state/photos'
 import { collectPhotoIds } from '../../state/store'
@@ -76,6 +77,7 @@ const CSS = `
 .sh-time { width: 62px; flex: none; padding-top: 12px; text-align: right; }
 .sh-time b { font-size: 14.5px; font-weight: 700; color: #16181d; letter-spacing: 0.02em; }
 .sh-time i { display: block; font-size: 11px; font-style: normal; color: #98a1ae; margin-top: 1px; }
+.sh-time i.sh-hometime { font-size: 9.5px; color: #4b5bd6; margin-top: 3px; font-weight: 700; }
 .sh-card {
   flex: 1; min-width: 0; position: relative; border: 1px solid #eee7db; border-radius: 14px;
   padding: 12px 15px 13px 17px; background: #ffffff; overflow: hidden;
@@ -231,25 +233,39 @@ function photoTag(id: string, className: string): string {
   return `<div class="${className}"><img src="${url}" alt="" /></div>`
 }
 
-function timeLabel(act: Activity): string {
-  if (!act.time) return '<i>時刻未定</i>'
+function timeLabel(act: Activity, tripDiff: number): string {
+  if (!act.time) return `<i>${esc(t('act.noTime'))}</i>`
   const end = act.endTime ? `<i>〜 ${esc(act.endTime)}</i>` : ''
-  return `<b class="sh-num">${esc(act.time)}</b>${end}`
+  const diff = act.timeDiff ?? tripDiff
+  let home = ''
+  if (diff) {
+    const shifted = shiftTime(act.time, -diff)
+    if (shifted) {
+      const mark =
+        shifted.dayShift < 0
+          ? ` ${t('tz.prevDay')}`
+          : shifted.dayShift > 0
+            ? ` ${t('tz.nextDay')}`
+            : ''
+      home = `<i class="sh-hometime">${esc(t('tz.home'))} ${esc(shifted.time)}${esc(mark)}</i>`
+    }
+  }
+  return `<b class="sh-num">${esc(act.time)}</b>${end}${home}`
 }
 
-function activityHtml(act: Activity): string {
+function activityHtml(act: Activity, tripDiff: number): string {
   const cat = category(act.category)
   const photos = act.photoIds.slice(0, 3).map((id) => photoTag(id, 'sh-photo')).join('')
   const chips: string[] = []
   if (act.cost != null) chips.push(`<span class="sh-chip sh-num">${esc(yen(act.cost))}</span>`)
-  if (act.url) chips.push(`<span class="sh-chip">リンクあり</span>`)
+  if (act.url) chips.push(`<span class="sh-chip">${esc(t('act.hasLink'))}</span>`)
   return `
     <div class="sh-item">
-      <div class="sh-time">${timeLabel(act)}</div>
+      <div class="sh-time">${timeLabel(act, tripDiff)}</div>
       <div class="sh-card">
         <div class="sh-stripe" style="background:${cat.color}"></div>
-        <span class="sh-tag" style="background:${cat.tint};color:${cat.color}">${esc(cat.label)}</span>
-        <div class="sh-title">${esc(act.title || '（無題の予定）')}</div>
+        <span class="sh-tag" style="background:${cat.tint};color:${cat.color}">${esc(categoryLabel(act.category))}</span>
+        <div class="sh-title">${esc(act.title || t('act.untitled'))}</div>
         ${act.place ? `<div class="sh-place">◎ ${esc(act.place)}</div>` : ''}
         ${act.memo ? `<div class="sh-memo">${esc(act.memo)}</div>` : ''}
         ${chips.length ? `<div class="sh-metarow">${chips.join('')}</div>` : ''}
@@ -277,10 +293,10 @@ function coverPage(trip: Trip): HTMLElement {
     }"></div>
     <div class="sh-cover-frame"></div>
     <div class="sh-stamp">
-      <b class="sh-serif">${days}</b><span>DAYS</span>
+      <b class="sh-serif">${days}</b><span>${esc(t('pdf.days'))}</span>
     </div>
     <div class="sh-cover-in">
-      <div class="sh-eyebrow">Travel Itinerary</div>
+      <div class="sh-eyebrow">${esc(t('pdf.itinerary'))}</div>
       <div style="flex:1"></div>
       ${trip.destination ? `<div class="sh-cover-dest">◎ ${esc(trip.destination)}</div>` : ''}
       <div class="sh-cover-title" style="margin-top:10px">${esc(trip.title)}</div>
@@ -289,17 +305,17 @@ function coverPage(trip: Trip): HTMLElement {
       )} — ${esc(formatDot(trip.endDate))}</div>
       <div class="sh-cover-rule" style="margin:26px 0 20px"></div>
       <div class="sh-cover-facts">
-        <div><div class="sh-fact-k">DAYS</div><div class="sh-fact-v sh-serif">${days}</div></div>
-        <div><div class="sh-fact-k">PLANS</div><div class="sh-fact-v sh-serif">${plans}</div></div>
+        <div><div class="sh-fact-k">${esc(t('pdf.days'))}</div><div class="sh-fact-v sh-serif">${days}</div></div>
+        <div><div class="sh-fact-k">${esc(t('pdf.plans'))}</div><div class="sh-fact-v sh-serif">${plans}</div></div>
         ${
           trip.members.length
-            ? `<div><div class="sh-fact-k">MEMBERS</div><div class="sh-fact-v" style="font-size:15px;font-weight:600">${esc(
+            ? `<div><div class="sh-fact-k">${esc(t('pdf.members'))}</div><div class="sh-fact-v" style="font-size:15px;font-weight:600">${esc(
                 trip.members.join(' / '),
               )}</div></div>`
             : ''
         }
       </div>
-      <div class="sh-eyebrow" style="margin-top:26px;opacity:0.72;font-size:10px">made with たびノート</div>
+      <div class="sh-eyebrow" style="margin-top:26px;opacity:0.72;font-size:10px">${esc(t('pdf.madeWith'))}</div>
     </div>`
   return page
 }
@@ -311,13 +327,15 @@ function dayPage(trip: Trip, day: Day, index: number, cont: boolean): { page: HT
   page.innerHTML = `
     <div class="sh-dayhead" style="background:${th.gradient}">
       <div class="sh-dayno">
-        <span>DAY</span><b class="sh-serif">${String(index + 1).padStart(2, '0')}</b>
+        <span>${esc(t('day.label'))}</span><b class="sh-serif">${String(index + 1).padStart(2, '0')}</b>
       </div>
       <div class="sh-daybar"></div>
       <div class="sh-daymeta">
-        <div class="sh-daydate">${esc(formatJp(day.date))}</div>
-        <div class="sh-daytitle">${esc(day.title || `${index + 1}日目の予定`)}${
-          cont ? '<span style="font-size:14px;font-weight:600;opacity:0.85"> （つづき）</span>' : ''
+        <div class="sh-daydate">${esc(formatDate(day.date))}</div>
+        <div class="sh-daytitle">${esc(day.title || t('day.nthTitle', { n: index + 1 }))}${
+          cont
+            ? `<span style="font-size:14px;font-weight:600;opacity:0.85">${esc(t('pdf.continued'))}</span>`
+            : ''
         }</div>
       </div>
     </div>
@@ -341,9 +359,11 @@ function summaryShell(trip: Trip, cont: boolean): { page: HTMLElement; body: HTM
   page.className = 'sh-page'
   page.innerHTML = `
     <div class="sh-plainhead">
-      <div class="sh-eyebrow" style="color:#98a1ae">Checklist &amp; Budget</div>
-      <div class="sh-h2" style="margin-top:8px">旅の準備と、費用${
-        cont ? '<span style="font-size:15px;font-weight:600;color:#98a1ae"> （つづき）</span>' : ''
+      <div class="sh-eyebrow" style="color:#98a1ae">${esc(t('pdf.checklistEyebrow'))}</div>
+      <div class="sh-h2" style="margin-top:8px">${esc(t('pdf.checklistTitle'))}${
+        cont
+          ? `<span style="font-size:15px;font-weight:600;color:#98a1ae">${esc(t('pdf.continued'))}</span>`
+          : ''
       }</div>
       <div class="sh-rule"></div>
       <div class="sh-flowbody" style="height:${SUMMARY_BODY_MAX}px"></div>
@@ -399,12 +419,12 @@ function summaryPages(trip: Trip, root: HTMLElement): HTMLElement[] {
   const flow = makeFlow((cont) => summaryShell(trip, cont), SUMMARY_BODY_MAX, root)
 
   if (todos.length > 0) {
-    flow.push(node('<div class="sh-secthead">旅までにやること</div>'))
-    for (const t of todos) {
+    flow.push(node(`<div class="sh-secthead">${esc(t('pdf.todoSection'))}</div>`))
+    for (const item of todos) {
       flow.push(
         node(
-          `<div class="sh-check"><div class="sh-box"></div><span>${esc(t.label)}${
-            t.due ? `<em>${esc(formatJp(t.due))}まで</em>` : ''
+          `<div class="sh-check"><div class="sh-box"></div><span>${esc(item.label)}${
+            item.due ? `<em>${esc(t('todo.due.until', { date: formatDate(item.due) }))}</em>` : ''
           }</span></div>`,
         ),
       )
@@ -412,7 +432,7 @@ function summaryPages(trip: Trip, root: HTMLElement): HTMLElement[] {
   }
 
   if (packing.length > 0) {
-    flow.push(node('<div class="sh-secthead">持ち物</div>'))
+    flow.push(node(`<div class="sh-secthead">${esc(t('pdf.packSection'))}</div>`))
     for (const p of packing) {
       flow.push(
         node(`<div class="sh-check"><div class="sh-box"></div><span>${esc(p.label)}</span></div>`),
@@ -421,19 +441,19 @@ function summaryPages(trip: Trip, root: HTMLElement): HTMLElement[] {
   }
 
   if (grand > 0) {
-    flow.push(node('<div class="sh-secthead">日ごとの費用</div>'))
+    flow.push(node(`<div class="sh-secthead">${esc(t('pdf.costSection'))}</div>`))
     costs.forEach((c, i) => {
       flow.push(
         node(
-          `<div class="sh-costrow"><span>DAY ${i + 1}　${esc(
-            formatJp(c.date),
+          `<div class="sh-costrow"><span>${esc(t('day.label'))} ${i + 1}　${esc(
+            formatDate(c.date),
           )}</span><b class="sh-num">${esc(yen(c.total))}</b></div>`,
         ),
       )
     })
     flow.push(
       node(
-        `<div class="sh-total"><span>TOTAL</span><b class="sh-num sh-serif">${esc(
+        `<div class="sh-total"><span>${esc(t('pdf.total'))}</span><b class="sh-num sh-serif">${esc(
           yen(grand),
         )}</b></div>`,
       ),
@@ -441,7 +461,7 @@ function summaryPages(trip: Trip, root: HTMLElement): HTMLElement[] {
   }
 
   if (trip.memo) {
-    flow.push(node('<div class="sh-secthead">メモ</div>'))
+    flow.push(node(`<div class="sh-secthead">${esc(t('pdf.memoSection'))}</div>`))
     for (const line of splitParagraphs(trip.memo)) {
       flow.push(node(`<div class="sh-note" style="margin-top:0">${esc(line) || '&nbsp;'}</div>`))
     }
@@ -476,7 +496,7 @@ function memoryHtml(trip: Trip, memory: Memory): string {
     <div class="sh-mem">
       <div class="sh-mem-img">${url ? `<img src="${url}" alt="" />` : ''}</div>
       ${memory.caption ? `<div class="sh-mem-cap">${esc(truncate(memory.caption, 72))}</div>` : ''}
-      ${dayIndex >= 0 ? `<div class="sh-mem-day">DAY ${dayIndex + 1}・${esc(formatJp(trip.days[dayIndex].date))}</div>` : ''}
+      ${dayIndex >= 0 ? `<div class="sh-mem-day">${esc(t('day.label'))} ${dayIndex + 1}・${esc(formatDate(trip.days[dayIndex].date))}</div>` : ''}
     </div>`
 }
 
@@ -492,9 +512,11 @@ function memoriesPages(trip: Trip): HTMLElement[] {
     page.className = 'sh-page'
     page.innerHTML = `
       <div class="sh-plainhead">
-        <div class="sh-eyebrow" style="color:#98a1ae">Memories</div>
-        <div class="sh-h2" style="margin-top:8px">旅の思い出${
-          start > 0 ? '<span style="font-size:15px;font-weight:600;color:#98a1ae"> （つづき）</span>' : ''
+        <div class="sh-eyebrow" style="color:#98a1ae">${esc(t('pdf.memoriesEyebrow'))}</div>
+        <div class="sh-h2" style="margin-top:8px">${esc(t('pdf.memoriesTitle'))}${
+          start > 0
+            ? `<span style="font-size:15px;font-weight:600;color:#98a1ae">${esc(t('pdf.continued'))}</span>`
+            : ''
         }</div>
         <div class="sh-rule"></div>
         <div class="sh-memgrid">${slice.map((m) => memoryHtml(trip, m)).join('')}</div>
@@ -519,14 +541,18 @@ export function buildShioriPages(trip: Trip, root: HTMLElement): HTMLElement[] {
     if (day.activities.length === 0) {
       const empty = document.createElement('div')
       empty.className = 'sh-empty'
-      empty.textContent = 'この日はまだ予定がありません'
+      empty.textContent = t('pdf.noPlans')
       flow.body.appendChild(empty)
     } else {
-      for (const act of day.activities) flow.push(node(activityHtml(act)))
+      for (const act of day.activities) flow.push(node(activityHtml(act, trip.timeDiff)))
     }
 
     if (day.diary) {
-      flow.push(node(`<div class="sh-diaryhead"><b>DAY ${index + 1} の日記</b><i></i></div>`))
+      flow.push(
+        node(
+          `<div class="sh-diaryhead"><b>${esc(t('pdf.diaryTitle', { n: index + 1 }))}</b><i></i></div>`,
+        ),
+      )
       for (const line of splitParagraphs(day.diary)) {
         flow.push(node(`<div class="sh-diaryline">${esc(line) || '&nbsp;'}</div>`))
       }
@@ -561,13 +587,13 @@ export function buildDayPoster(trip: Trip, day: Day, index: number, root: HTMLEl
       <div class="sh-eyebrow" style="font-size:15px">${esc(trip.title)}</div>
       <div style="display:flex;align-items:flex-end;gap:24px;margin-top:26px">
         <div class="sh-dayno">
-          <span style="font-size:14px">DAY</span>
+          <span style="font-size:14px">${esc(t('day.label'))}</span>
           <b class="sh-serif" style="font-size:78px">${String(index + 1).padStart(2, '0')}</b>
         </div>
         <div style="padding-bottom:12px">
-          <div class="sh-daydate" style="font-size:19px">${esc(formatJp(day.date))}</div>
+          <div class="sh-daydate" style="font-size:19px">${esc(formatDate(day.date))}</div>
           <div style="font-size:34px;font-weight:900;margin-top:4px">${esc(
-            day.title || 'この日の予定',
+            day.title || t('pdf.thisDay'),
           )}</div>
         </div>
       </div>
@@ -582,18 +608,18 @@ export function buildDayPoster(trip: Trip, day: Day, index: number, root: HTMLEl
     <div class="sh-poster-body">
       ${
         day.activities.length
-          ? day.activities.map((a) => activityHtml(a)).join('')
-          : '<div class="sh-empty">この日はまだ予定がありません</div>'
+          ? day.activities.map((a) => activityHtml(a, trip.timeDiff)).join('')
+          : `<div class="sh-empty">${esc(t('pdf.noPlans'))}</div>`
       }
       ${
         day.diary
-          ? `<div class="sh-diaryhead"><b>DAY ${index + 1} の日記</b><i></i></div>
+          ? `<div class="sh-diaryhead"><b>${esc(t('pdf.diaryTitle', { n: index + 1 }))}</b><i></i></div>
              <div class="sh-diaryline">${esc(day.diary).replace(/\n/g, '<br />')}</div>`
           : ''
       }
     </div>
     <div class="sh-poster-foot">
-      <span>${total > 0 ? esc('この日の費用 ' + yen(total)) : 'たびノート'}</span>
+      <span>${esc(total > 0 ? t('pdf.dayCost', { v: yen(total) }) : t('app.name'))}</span>
       <span>${esc(formatDot(day.date))}・${esc(weekday(day.date))}</span>
     </div>`
   root.appendChild(poster)
@@ -621,7 +647,7 @@ export function buildTripPoster(trip: Trip, root: HTMLElement): HTMLElement {
       }
       <div style="position:absolute;inset:0;background:linear-gradient(180deg, rgba(0,0,0,0.25), rgba(0,0,0,0.66))"></div>
       <div style="position:absolute;inset:0;padding:56px 60px;display:flex;flex-direction:column;color:#fff">
-        <div class="sh-eyebrow" style="font-size:15px">Travel Itinerary</div>
+        <div class="sh-eyebrow" style="font-size:15px">${esc(t('pdf.itinerary'))}</div>
         <div style="flex:1"></div>
         ${
           trip.destination
@@ -634,19 +660,19 @@ export function buildTripPoster(trip: Trip, root: HTMLElement): HTMLElement {
           trip.title,
         )}</div>
         <div class="sh-num" style="font-size:24px;font-weight:600;margin-top:14px;opacity:0.95">${esc(
-          rangeLabel(trip.startDate, trip.endDate),
+          rangeLabel(trip.startDate, trip.endDate, t('trip.noDates')),
         )}</div>
       </div>
     </div>
     <div style="padding:44px 60px 20px;display:flex;gap:48px">
-      <div><div class="sh-fact-k" style="color:#98a1ae">DAYS</div><div class="sh-serif" style="font-size:40px;font-weight:700">${nightsBetween(
+      <div><div class="sh-fact-k" style="color:#98a1ae">${esc(t('pdf.days'))}</div><div class="sh-serif" style="font-size:40px;font-weight:700">${nightsBetween(
         trip.startDate,
         trip.endDate,
       )}</div></div>
-      <div><div class="sh-fact-k" style="color:#98a1ae">PLANS</div><div class="sh-serif" style="font-size:40px;font-weight:700">${plans}</div></div>
+      <div><div class="sh-fact-k" style="color:#98a1ae">${esc(t('pdf.plans'))}</div><div class="sh-serif" style="font-size:40px;font-weight:700">${plans}</div></div>
       ${
         total > 0
-          ? `<div><div class="sh-fact-k" style="color:#98a1ae">BUDGET</div><div class="sh-serif sh-num" style="font-size:40px;font-weight:700">${esc(
+          ? `<div><div class="sh-fact-k" style="color:#98a1ae">${esc(t('pdf.budget'))}</div><div class="sh-serif sh-num" style="font-size:40px;font-weight:700">${esc(
               yen(total),
             )}</div></div>`
           : ''
@@ -665,16 +691,16 @@ export function buildTripPoster(trip: Trip, root: HTMLElement): HTMLElement {
               i + 1,
             ).padStart(2, '0')}</div>
             <div style="flex:1;min-width:0">
-              <div style="font-size:19px;font-weight:800">${esc(d.title || formatJp(d.date))}</div>
+              <div style="font-size:19px;font-weight:800">${esc(d.title || formatDate(d.date))}</div>
               <div style="font-size:16px;color:#6b7482;margin-top:2px">${
-                heads || '予定なし'
-              }${d.activities.length > 3 ? ` ほか${d.activities.length - 3}件` : ''}</div>
+                heads || esc(t('pdf.noPlans'))
+              }${d.activities.length > 3 ? ` +${d.activities.length - 3}` : ''}</div>
             </div>
           </div>`
         })
         .join('')}
     </div>
-    <div class="sh-poster-foot"><span>made with たびノート</span><span></span></div>`
+    <div class="sh-poster-foot"><span>${esc(t('pdf.madeWith'))}</span><span></span></div>`
   root.appendChild(poster)
   return poster
 }
@@ -687,8 +713,8 @@ export function buildMemoriesPoster(trip: Trip, root: HTMLElement): HTMLElement 
   poster.className = 'sh-poster'
   poster.innerHTML = `
     <div class="sh-poster-head" style="background:${th.gradient}">
-      <div class="sh-eyebrow" style="font-size:15px">Memories</div>
-      <div style="font-size:52px;font-weight:900;line-height:1.2;margin-top:18px">旅の思い出</div>
+      <div class="sh-eyebrow" style="font-size:15px">${esc(t('pdf.memoriesEyebrow'))}</div>
+      <div style="font-size:52px;font-weight:900;line-height:1.2;margin-top:18px">${esc(t('pdf.memoriesTitle'))}</div>
       <div style="font-size:22px;font-weight:700;margin-top:10px;opacity:0.95">${esc(
         trip.title,
       )}</div>
@@ -702,12 +728,12 @@ export function buildMemoriesPoster(trip: Trip, root: HTMLElement): HTMLElement 
       ${
         memories.length
           ? memories.map((m) => memoryHtml(trip, m)).join('')
-          : '<div class="sh-empty">まだ写真がありません</div>'
+          : `<div class="sh-empty">${esc(t('pdf.noPhotos'))}</div>`
       }
     </div>
     <div class="sh-poster-foot">
-      <span>made with たびノート</span>
-      <span class="sh-num">${memories.length} photos</span>
+      <span>${esc(t('pdf.madeWith'))}</span>
+      <span class="sh-num">${esc(t('pdf.photos', { n: memories.length }))}</span>
     </div>`
   root.appendChild(poster)
   return poster

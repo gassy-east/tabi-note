@@ -2,13 +2,15 @@ import { useRef, useState } from 'react'
 import { Icon } from './Icon'
 import { deletePhoto, savePhotos, usePhoto } from '../state/photos'
 import { toast } from './Toast'
+import { useT } from '../i18n'
 
 function Tile({ id, onRemove }: { id: string; onRemove: () => void }) {
+  const t = useT()
   const url = usePhoto(id)
   return (
     <div className="uploader__tile">
       {url ? <img src={url} alt="" /> : null}
-      <button className="uploader__remove" onClick={onRemove} aria-label="この写真を削除">
+      <button className="uploader__remove" onClick={onRemove} aria-label={t('photo.removeAria')}>
         <Icon name="close" size={13} strokeWidth={2.6} />
       </button>
     </div>
@@ -22,6 +24,7 @@ interface PhotoUploaderProps {
 }
 
 export function PhotoUploader({ photoIds, onChange, max = 8 }: PhotoUploaderProps) {
+  const t = useT()
   const inputRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
 
@@ -29,7 +32,7 @@ export function PhotoUploader({ photoIds, onChange, max = 8 }: PhotoUploaderProp
     if (!fileList || fileList.length === 0) return
     const room = max - photoIds.length
     if (room <= 0) {
-      toast(`写真は ${max} 枚までです`, 'error')
+      toast(t('photo.max', { n: max }), 'error')
       return
     }
     setBusy(true)
@@ -37,7 +40,7 @@ export function PhotoUploader({ photoIds, onChange, max = 8 }: PhotoUploaderProp
       const ids = await savePhotos(Array.from(fileList).slice(0, room))
       if (ids.length > 0) onChange([...photoIds, ...ids])
     } catch {
-      toast('写真を読み込めませんでした', 'error')
+      toast(t('photo.failed'), 'error')
     } finally {
       setBusy(false)
       if (inputRef.current) inputRef.current.value = ''
@@ -64,7 +67,7 @@ export function PhotoUploader({ photoIds, onChange, max = 8 }: PhotoUploaderProp
             onClick={() => inputRef.current?.click()}
           >
             <Icon name={busy ? 'sparkle' : 'image'} size={20} />
-            <span>{busy ? '処理中' : '写真を追加'}</span>
+            <span>{busy ? t('common.processing') : t('photo.add')}</span>
           </button>
         ) : null}
       </div>
@@ -86,6 +89,7 @@ interface CoverPickerProps {
 }
 
 export function CoverPicker({ photoId, onChange }: CoverPickerProps) {
+  const t = useT()
   const inputRef = useRef<HTMLInputElement>(null)
   const url = usePhoto(photoId)
   const [busy, setBusy] = useState(false)
@@ -97,7 +101,7 @@ export function CoverPicker({ photoId, onChange }: CoverPickerProps) {
       const ids = await savePhotos([fileList[0]])
       if (ids[0]) onChange(ids[0])
     } catch {
-      toast('写真を読み込めませんでした', 'error')
+      toast(t('photo.failed'), 'error')
     } finally {
       setBusy(false)
       if (inputRef.current) inputRef.current.value = ''
@@ -112,7 +116,7 @@ export function CoverPicker({ photoId, onChange }: CoverPickerProps) {
           style={{ aspectRatio: '16 / 9', borderRadius: 16, marginBottom: 8 }}
         >
           <img src={url} alt="" />
-          <button className="uploader__remove" onClick={() => onChange(null)} aria-label="カバー写真を削除">
+          <button className="uploader__remove" onClick={() => onChange(null)} aria-label={t('photo.removeCover')}>
             <Icon name="close" size={13} strokeWidth={2.6} />
           </button>
         </div>
@@ -124,7 +128,7 @@ export function CoverPicker({ photoId, onChange }: CoverPickerProps) {
         onClick={() => inputRef.current?.click()}
       >
         <Icon name="image" size={16} />
-        {busy ? '処理中…' : url ? 'カバー写真を変える' : 'カバー写真を選ぶ'}
+        {busy ? t('common.processing') : url ? t('photo.changeCover') : t('photo.pickCover')}
       </button>
       <input
         ref={inputRef}

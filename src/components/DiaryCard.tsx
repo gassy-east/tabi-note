@@ -4,7 +4,8 @@ import { MemoryViewer } from './MemoryViewer'
 import { toast } from './Toast'
 import { savePhotos, usePhoto } from '../state/photos'
 import { addMemories, updateDay } from '../state/store'
-import { formatJp, todayIso } from '../lib/date'
+import { formatDate, todayIso } from '../lib/date'
+import { useT } from '../i18n'
 import { theme } from '../lib/catalog'
 import { clsx } from '../lib/util'
 import type { Day, Trip } from '../types'
@@ -14,7 +15,7 @@ const SAVE_DELAY = 700
 function DiaryPhoto({ photoId, caption, onOpen }: { photoId: string; caption: string; onOpen: () => void }) {
   const url = usePhoto(photoId)
   return (
-    <button className="diary__photo" onClick={onOpen} aria-label={caption || '写真を大きく見る'}>
+    <button className="diary__photo" onClick={onOpen} aria-label={caption}>
       {url ? <img src={url} alt="" loading="lazy" /> : null}
     </button>
   )
@@ -27,6 +28,7 @@ interface DiaryCardProps {
 }
 
 export function DiaryCard({ trip, day, index }: DiaryCardProps) {
+  const t = useT()
   const [text, setText] = useState(day.diary)
   const [openIndex, setOpenIndex] = useState<number | null>(null)
   const [busy, setBusy] = useState(false)
@@ -77,10 +79,10 @@ export function DiaryCard({ trip, day, index }: DiaryCardProps) {
       const ids = await savePhotos(Array.from(fileList))
       if (ids.length > 0) {
         addMemories(trip.id, ids, day.id)
-        toast(`DAY ${index + 1} の思い出を${ids.length}枚追加しました`)
+        toast(t('diary.photoAdded', { n: index + 1, m: ids.length }))
       }
     } catch {
-      toast('写真を読み込めませんでした', 'error')
+      toast(t('photo.failed'), 'error')
     } finally {
       setBusy(false)
       if (inputRef.current) inputRef.current.value = ''
@@ -93,9 +95,9 @@ export function DiaryCard({ trip, day, index }: DiaryCardProps) {
       <div className="row" style={{ justifyContent: 'space-between', gap: 10 }}>
         <h3 className="section-title" style={{ fontSize: 15 }}>
           <Icon name="book" size={17} />
-          DAY {index + 1} の日記
+          {t('diary.title', { n: index + 1 })}
         </h3>
-        <span className="tiny muted num">{formatJp(day.date)}</span>
+        <span className="tiny muted num">{formatDate(day.date)}</span>
       </div>
 
       <textarea
@@ -104,8 +106,8 @@ export function DiaryCard({ trip, day, index }: DiaryCardProps) {
         value={text}
         placeholder={
           isFuture
-            ? 'この日を終えたら、ここに書きに来てください。'
-            : 'どんな一日でしたか？ おいしかったもの、話したこと、思ったこと。'
+            ? t('diary.phFuture')
+            : t('diary.ph')
         }
         onChange={(e) => handleChange(e.target.value)}
         onBlur={() => {
@@ -115,14 +117,14 @@ export function DiaryCard({ trip, day, index }: DiaryCardProps) {
       />
 
       <div className="diary__foot">
-        <span className="tiny muted num">{text.trim().length > 0 ? `${text.trim().length} 文字` : ''}</span>
+        <span className="tiny muted num">{text.trim().length > 0 ? t('diary.chars', { n: text.trim().length }) : ''}</span>
         <button
           className="btn btn--soft btn--sm"
           disabled={busy}
           onClick={() => inputRef.current?.click()}
         >
           <Icon name={busy ? 'sparkle' : 'camera'} size={15} strokeWidth={2.2} />
-          {busy ? '追加中' : 'この日の写真'}
+          {busy ? t('common.adding') : t('diary.addPhoto')}
         </button>
       </div>
 
@@ -139,7 +141,7 @@ export function DiaryCard({ trip, day, index }: DiaryCardProps) {
           <button
             className={clsx('diary__add', busy && 'is-busy')}
             onClick={() => inputRef.current?.click()}
-            aria-label="写真を追加"
+            aria-label={t('album.addAria')}
           >
             <Icon name="plus" size={18} strokeWidth={2.4} />
           </button>

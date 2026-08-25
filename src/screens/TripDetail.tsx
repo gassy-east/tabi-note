@@ -38,20 +38,31 @@ import {
   sortActivitiesByTime,
   useTrip,
 } from '../state/store'
-import { category, theme } from '../lib/catalog'
-import { daysUntil, formatJp, nightsBetween, rangeLabel, todayIso, weekday } from '../lib/date'
+import { category, categoryLabel, theme } from '../lib/catalog'
+import {
+  daysUntil,
+  formatDate,
+  formatOffset,
+  formatShort,
+  isWeekendIso,
+  nightsBetween,
+  rangeLabel,
+  shiftTime,
+  todayIso,
+} from '../lib/date'
 import { mapDirectionsUrl, mapSearchUrl } from '../lib/maps'
 import { useScrolled } from '../lib/hooks'
 import { clsx, yen } from '../lib/util'
 import { goHome, navigate } from '../App'
+import { t as tr, useT } from '../i18n'
 import type { Activity, Day } from '../types'
 
 /* ---------------------------------------------------------------- 写真 */
 
-function Thumb({ id, onOpen }: { id: string; onOpen: () => void }) {
+function Thumb({ id, onOpen, label }: { id: string; onOpen: () => void; label: string }) {
   const url = usePhoto(id)
   return (
-    <button className="act__photo" onClick={onOpen} aria-label="写真を大きく見る">
+    <button className="act__photo" onClick={onOpen} aria-label={label}>
       {url ? <img src={url} alt="" loading="lazy" /> : null}
     </button>
   )
@@ -59,17 +70,32 @@ function Thumb({ id, onOpen }: { id: string; onOpen: () => void }) {
 
 /* ------------------------------------------------------------ 予定カード */
 
+/** 現地時刻から自宅時刻の表示文字列を作る */
+function homeTimeLabel(time: string, endTime: string, diff: number): string | null {
+  if (!diff || !time) return null
+  const start = shiftTime(time, -diff)
+  if (!start) return null
+  const suffix =
+    start.dayShift < 0 ? ` ${tr('tz.prevDay')}` : start.dayShift > 0 ? ` ${tr('tz.nextDay')}` : ''
+  const end = endTime ? shiftTime(endTime, -diff) : null
+  return `${tr('tz.home')} ${start.time}${end ? ` 〜 ${end.time}` : ''}${suffix}`
+}
+
 interface ActivityRowProps {
   activity: Activity
+  tripTimeDiff: number
   onEdit: () => void
   onPhotoOpen: (index: number) => void
 }
 
-function ActivityRow({ activity, onEdit, onPhotoOpen }: ActivityRowProps) {
+function ActivityRow({ activity, tripTimeDiff, onEdit, onPhotoOpen }: ActivityRowProps) {
+  const t = useT()
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: activity.id,
   })
   const cat = category(activity.category)
+  const diff = activity.timeDiff ?? tripTimeDiff
+  const home = homeTimeLabel(activity.time, activity.endTime, diff)
 
   return (
     <div
@@ -93,9 +119,14 @@ function ActivityRow({ activity, onEdit, onPhotoOpen }: ActivityRowProps) {
             {activity.endTime ? ` 〜 ${activity.endTime}` : ''}
           </>
         ) : (
-          '時刻未定'
+          t('act.noTime')
         )}
       </div>
+      {home ? (
+        <div className="tl-item__home">
+          <i>{home}</i>
+        </div>
+      ) : null}
 
       <div className={clsx('act', isDragging && 'is-dragging')}>
         <span className="act__stripe" style={{ background: cat.color }} />
@@ -108,21 +139,22 @@ function ActivityRow({ activity, onEdit, onPhotoOpen }: ActivityRowProps) {
             <div className="act__tagrow">
               <span className="tag" style={{ background: cat.tint, color: cat.color }}>
                 <Icon name={cat.icon} size={12} strokeWidth={2.2} />
-                {cat.label}
+                {categoryLabel(activity.category)}
               </span>
+              {activity.timeDiff != null && activity.timeDiff !== tripTimeDiff ? (
+                <span className="tag" style={{ background: 'var(--indigo-soft)', color: 'var(--indigo)' }}>
+                  <Icon name="clock" size={12} strokeWidth={2.2} />
+                  {formatOffset(activity.timeDiff)}
+                </span>
+              ) : null}
             </div>
             <div className={clsx('act__title', !activity.title && 'act__title--empty')}>
-              {activity.title || '（タップして予定を書く）'}
+              {activity.title || t('act.tapToWrite')}
             </div>
             {activity.memo ? <div className="act__memo">{activity.memo}</div> : null}
           </button>
 
-          <span
-            className="act__handle"
-            {...attributes}
-            {...listeners}
-            aria-label="ドラッグして並べ替え"
-          >
+          <span className="act__handle" {...attributes} {...listeners} aria-label={t('act.dragAria')}>
             <Icon name="grip" size={16} />
           </span>
         </div>
@@ -154,16 +186,18 @@ function ActivityRow({ activity, onEdit, onPhotoOpen }: ActivityRowProps) {
                 rel="noreferrer"
               >
                 <Icon name="link" size={12} strokeWidth={2.2} />
-                リンク
+                {t('act.link')}
               </a>
             ) : null}
           </div>
         ) : null}
 
         {activity.photoIds.length > 0 ? (
-          <div className={clsx('act__photos', activity.photoIds.length === 1 && 'act__photos--single')}>
+          <div
+            className={clsx('act__photos', activity.photoIds.length === 1 && 'act__photos--single')}
+          >
             {activity.photoIds.map((id, i) => (
-              <Thumb key={id} id={id} onOpen={() => onPhotoOpen(i)} />
+              <Thumb key={id} id={id} onOpen={() => onPhotoOpen(i)} label={t('album.viewAria')} />
             ))}
           </div>
         ) : null}
@@ -175,6 +209,7 @@ function ActivityRow({ activity, onEdit, onPhotoOpen }: ActivityRowProps) {
 /* ------------------------------------------------------------ 本体 */
 
 export function TripDetail({ tripId }: { tripId: string }) {
+  const t = useT()
   const trip = useTrip(tripId)
   const scrolled = useScrolled()
   const cover = usePhoto(trip?.coverPhotoId ?? null)
@@ -219,10 +254,10 @@ export function TripDetail({ tripId }: { tripId: string }) {
           <div className="empty__icon">
             <Icon name="compass" size={30} />
           </div>
-          <h3>旅が見つかりません</h3>
-          <p>削除されたか、別の端末で作られた旅かもしれません。</p>
+          <h3>{t('app.notFound.title')}</h3>
+          <p>{t('app.notFound.body')}</p>
           <button className="btn btn--primary" style={{ marginTop: 16 }} onClick={() => navigate('/')}>
-            ホームにもどる
+            {t('app.notFound.home')}
           </button>
         </div>
       </main>
@@ -257,14 +292,14 @@ export function TripDetail({ tripId }: { tripId: string }) {
   return (
     <>
       <header className={clsx('topbar', scrolled && 'is-scrolled')}>
-        <button className="iconbtn" onClick={goHome} aria-label="もどる">
+        <button className="iconbtn" onClick={goHome} aria-label={t('common.back')}>
           <Icon name="left" size={19} strokeWidth={2.2} />
         </button>
         <span className="topbar__title">{trip.title}</span>
-        <button className="iconbtn" onClick={() => setExporting(true)} aria-label="書き出す">
+        <button className="iconbtn" onClick={() => setExporting(true)} aria-label={t('export.title')}>
           <Icon name="download" size={19} />
         </button>
-        <button className="iconbtn" onClick={() => setMenu(true)} aria-label="メニュー">
+        <button className="iconbtn" onClick={() => setMenu(true)} aria-label={t('common.menu')}>
           <Icon name="dots" size={19} />
         </button>
       </header>
@@ -283,16 +318,24 @@ export function TripDetail({ tripId }: { tripId: string }) {
               </span>
             ) : null}
             <h1 className="cover__title">{trip.title}</h1>
-            <div className="cover__dates">{rangeLabel(trip.startDate, trip.endDate)}</div>
+            <div className="cover__dates">
+              {rangeLabel(trip.startDate, trip.endDate, t('trip.noDates'))}
+            </div>
             <div className="cover__pills">
               <span className="cover__pill">
                 <Icon name="calendar" size={13} strokeWidth={2.2} />
-                {nightsBetween(trip.startDate, trip.endDate)}日間
+                {t('detail.pill.days', { n: nightsBetween(trip.startDate, trip.endDate) })}
               </span>
               <span className="cover__pill">
                 <Icon name="route" size={13} strokeWidth={2.2} />
-                予定 {totalPlans}件
+                {t('detail.pill.plans', { n: totalPlans })}
               </span>
+              {trip.timeDiff !== 0 ? (
+                <span className="cover__pill num">
+                  <Icon name="clock" size={13} strokeWidth={2.2} />
+                  {t('detail.pill.timeDiff', { v: formatOffset(trip.timeDiff) })}
+                </span>
+              ) : null}
               {tripTotal > 0 ? (
                 <span className="cover__pill num">
                   <Icon name="coin" size={13} strokeWidth={2.2} />
@@ -302,18 +345,18 @@ export function TripDetail({ tripId }: { tripId: string }) {
               {left != null && left > 0 ? (
                 <span className="cover__pill">
                   <Icon name="plane" size={13} strokeWidth={2.2} />
-                  あと{left}日
+                  {t('detail.pill.left', { n: left })}
                 </span>
               ) : null}
             </div>
             <div className="cover__actions">
               <button className="cover__btn" onClick={() => setExporting(true)}>
                 <Icon name="download" size={15} strokeWidth={2.2} />
-                しおりに書き出す
+                {t('detail.exportCta')}
               </button>
               <button className="cover__btn cover__btn--outline" onClick={() => setEditTrip(true)}>
                 <Icon name="pencil" size={15} strokeWidth={2.2} />
-                旅の情報
+                {t('detail.infoCta')}
               </button>
             </div>
           </div>
@@ -327,16 +370,13 @@ export function TripDetail({ tripId }: { tripId: string }) {
                 className={clsx(
                   'daytab',
                   i === safeIndex && 'is-active',
-                  ['土', '日'].includes(weekday(d.date)) && 'is-weekend',
+                  isWeekendIso(d.date) && 'is-weekend',
                 )}
                 onClick={() => selectDay(i)}
               >
-                <span>DAY</span>
+                <span>{t('day.label')}</span>
                 <b>{i + 1}</b>
-                <small>
-                  {d.date.slice(5).replace('-', '/')}
-                  {weekday(d.date) ? `(${weekday(d.date)})` : ''}
-                </small>
+                <small>{formatShort(d.date)}</small>
               </button>
             ))}
           </div>
@@ -347,21 +387,21 @@ export function TripDetail({ tripId }: { tripId: string }) {
             <div className="dayhead">
               <div className="dayhead__stamp" style={{ background: th.gradient }}>
                 <div style={{ textAlign: 'center' }}>
-                  <span>DAY</span>
+                  <span>{t('day.label')}</span>
                   <b>{safeIndex + 1}</b>
                 </div>
               </div>
               <div className="dayhead__main">
-                <div className="dayhead__date">{formatJp(day.date)}</div>
+                <div className="dayhead__date">{formatDate(day.date)}</div>
                 <div className={clsx('dayhead__title', !day.title && 'dayhead__title--empty')}>
-                  {day.title || 'この日のテーマを決める'}
+                  {day.title || t('day.themePh')}
                 </div>
                 {day.memo ? <div className="dayhead__memo">{day.memo}</div> : null}
               </div>
               <button
                 className="iconbtn"
                 onClick={() => setEditDay(true)}
-                aria-label="この日の情報を編集"
+                aria-label={t('day.editAria')}
               >
                 <Icon name="pencil" size={17} />
               </button>
@@ -369,11 +409,11 @@ export function TripDetail({ tripId }: { tripId: string }) {
 
             <div className="daysum">
               <span className="stat-chip">
-                予定 <b>{day.activities.length}</b>
+                {t('day.sum.plans')} <b>{day.activities.length}</b>
               </span>
               {dayTotal > 0 ? (
                 <span className="stat-chip">
-                  費用 <b>{yen(dayTotal)}</b>
+                  {t('day.sum.cost')} <b>{yen(dayTotal)}</b>
                 </span>
               ) : null}
               {day.activities.length > 1 ? (
@@ -381,11 +421,11 @@ export function TripDetail({ tripId }: { tripId: string }) {
                   className="stat-chip"
                   onClick={() => {
                     sortActivitiesByTime(trip.id, day.id)
-                    toast('時刻順に並べ替えました')
+                    toast(t('day.sorted'))
                   }}
                 >
                   <Icon name="sort" size={14} />
-                  時刻順に並べる
+                  {t('day.sortByTime')}
                 </button>
               ) : null}
             </div>
@@ -395,19 +435,15 @@ export function TripDetail({ tripId }: { tripId: string }) {
                 <div className="empty__icon" style={{ background: th.gradient }}>
                   <Icon name="sparkle" size={30} strokeWidth={1.8} />
                 </div>
-                <h3>DAY {safeIndex + 1} はまだ真っ白</h3>
-                <p>
-                  行きたい場所、食べたいもの。
-                  <br />
-                  ひとつ足すところから始めましょう。
-                </p>
+                <h3>{t('day.empty.title', { n: safeIndex + 1 })}</h3>
+                <p style={{ whiteSpace: 'pre-line' }}>{t('day.empty.body')}</p>
                 <button
                   className="btn btn--primary"
                   style={{ marginTop: 18 }}
                   onClick={() => setEditing({ activity: emptyActivity(), isNew: true })}
                 >
                   <Icon name="plus" size={17} strokeWidth={2.4} />
-                  最初の予定を追加
+                  {t('day.empty.cta')}
                 </button>
               </div>
             ) : (
@@ -431,6 +467,7 @@ export function TripDetail({ tripId }: { tripId: string }) {
                         <Fragment key={activity.id}>
                           <ActivityRow
                             activity={activity}
+                            tripTimeDiff={trip.timeDiff}
                             onEdit={() => setEditing({ activity, isNew: false })}
                             onPhotoOpen={(photoIndex) =>
                               setPhotoView({ ids: activity.photoIds, index: photoIndex })
@@ -445,7 +482,7 @@ export function TripDetail({ tripId }: { tripId: string }) {
                                 rel="noreferrer"
                               >
                                 <Icon name="route" size={13} strokeWidth={2.2} />
-                                ここからの行き方を調べる
+                                {t('act.routeCta')}
                               </a>
                             </div>
                           ) : null}
@@ -464,7 +501,7 @@ export function TripDetail({ tripId }: { tripId: string }) {
                 onClick={() => setEditing({ activity: emptyActivity(), isNew: true })}
               >
                 <Icon name="plus" size={17} strokeWidth={2.4} />
-                DAY {safeIndex + 1} に予定を足す
+                {t('day.addPlan', { n: safeIndex + 1 })}
               </button>
             ) : null}
           </>
@@ -478,7 +515,7 @@ export function TripDetail({ tripId }: { tripId: string }) {
 
         <h2 className="section-title" style={{ margin: '34px 0 12px' }}>
           <Icon name="suitcase" size={17} />
-          旅の準備と、記録
+          {t('detail.sectionPrep')}
           <i className="section-title__line" />
         </h2>
 
@@ -496,9 +533,11 @@ export function TripDetail({ tripId }: { tripId: string }) {
           <section className="card" style={{ marginTop: 16, padding: '16px 18px' }}>
             <h3 className="section-title" style={{ fontSize: 15, marginBottom: 8 }}>
               <Icon name="book" size={17} />
-              旅のメモ
+              {t('detail.tripMemo')}
             </h3>
-            <p style={{ fontSize: 13.5, color: 'var(--ink-2)', whiteSpace: 'pre-wrap' }}>{trip.memo}</p>
+            <p style={{ fontSize: 13.5, color: 'var(--ink-2)', whiteSpace: 'pre-wrap' }}>
+              {trip.memo}
+            </p>
           </section>
         ) : null}
       </main>
@@ -509,7 +548,7 @@ export function TripDetail({ tripId }: { tripId: string }) {
           onClick={() => setEditing({ activity: emptyActivity(), isNew: true })}
         >
           <Icon name="plus" size={20} strokeWidth={2.6} />
-          予定を追加
+          {t('act.add')}
         </button>
       ) : null}
 
@@ -529,6 +568,7 @@ export function TripDetail({ tripId }: { tripId: string }) {
           days={trip.days}
           activity={editing.activity}
           isNew={editing.isNew}
+          tripTimeDiff={trip.timeDiff}
           onClose={() => setEditing(null)}
         />
       ) : null}
@@ -544,7 +584,7 @@ export function TripDetail({ tripId }: { tripId: string }) {
       ) : null}
 
       {menu ? (
-        <Sheet title="この旅について" onClose={() => setMenu(false)}>
+        <Sheet title={t('detail.menu.title')} onClose={() => setMenu(false)}>
           <div className="menu" style={{ padding: 0 }}>
             <button
               className="menu__item"
@@ -557,8 +597,8 @@ export function TripDetail({ tripId }: { tripId: string }) {
                 <Icon name="pencil" size={18} />
               </span>
               <span>
-                旅の情報を編集
-                <small>タイトル・日程・テーマ・カバー写真</small>
+                {t('detail.menu.edit')}
+                <small>{t('detail.menu.editSub')}</small>
               </span>
             </button>
             <button
@@ -572,8 +612,8 @@ export function TripDetail({ tripId }: { tripId: string }) {
                 <Icon name="download" size={18} />
               </span>
               <span>
-                ファイルに書き出す
-                <small>PDF のしおり / PNG 画像</small>
+                {t('detail.menu.export')}
+                <small>{t('detail.menu.exportSub')}</small>
               </span>
             </button>
             <button
@@ -582,7 +622,7 @@ export function TripDetail({ tripId }: { tripId: string }) {
                 const id = duplicateTrip(trip.id)
                 setMenu(false)
                 if (id) {
-                  toast('旅を複製しました')
+                  toast(t('trip.duplicated'))
                   navigate(`/trip/${id}`)
                 }
               }}
@@ -591,8 +631,8 @@ export function TripDetail({ tripId }: { tripId: string }) {
                 <Icon name="copy" size={18} />
               </span>
               <span>
-                この旅を複製
-                <small>同じ行程をベースに新しい旅を作る</small>
+                {t('detail.menu.duplicate')}
+                <small>{t('detail.menu.duplicateSub')}</small>
               </span>
             </button>
             <button
@@ -609,8 +649,8 @@ export function TripDetail({ tripId }: { tripId: string }) {
                 <Icon name="trash" size={18} />
               </span>
               <span>
-                この旅を削除
-                <small>予定と写真もすべて消えます</small>
+                {t('detail.menu.delete')}
+                <small>{t('detail.menu.deleteSub')}</small>
               </span>
             </button>
           </div>
@@ -619,14 +659,14 @@ export function TripDetail({ tripId }: { tripId: string }) {
 
       {confirmDelete ? (
         <Confirm
-          title="この旅を削除しますか？"
-          message={`「${trip.title}」の予定 ${totalPlans}件と写真がすべて削除されます。この操作は取り消せません。`}
-          confirmLabel="削除する"
+          title={t('detail.delete.title')}
+          message={t('detail.delete.body', { title: trip.title, n: totalPlans })}
+          confirmLabel={t('detail.delete.confirm')}
           danger
           onClose={() => setConfirmDelete(false)}
           onConfirm={() => {
             deleteTrip(trip.id)
-            toast('旅を削除しました')
+            toast(t('trip.deleted'))
             navigate('/')
           }}
         />

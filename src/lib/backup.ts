@@ -3,6 +3,7 @@ import { photosDb } from './db'
 import { collectPhotoIds, importTrips } from '../state/store'
 import { getTemplate, isFactoryTemplate, setTemplate } from '../state/settings'
 import { downloadBlob } from './image'
+import { t } from '../i18n'
 
 const FORMAT = 'tabinote-backup'
 const VERSION = 3
@@ -47,9 +48,9 @@ export async function importBackup(file: File): Promise<number> {
   try {
     data = JSON.parse(text)
   } catch {
-    throw new Error('ファイルを読み取れませんでした')
+    throw new Error(t('settings.badFile'))
   }
-  if (!isBackup(data)) throw new Error('たびノートのバックアップファイルではないようです')
+  if (!isBackup(data)) throw new Error(t('settings.notBackup'))
 
   for (const photo of data.photos) {
     if (photo && typeof photo.id === 'string' && typeof photo.dataUrl === 'string') {

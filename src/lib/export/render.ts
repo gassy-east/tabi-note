@@ -1,5 +1,6 @@
 import type { Trip } from '../../types'
 import { downloadDataUrl } from '../image'
+import { t } from '../../i18n'
 import {
   A4_H,
   A4_W,
@@ -14,7 +15,7 @@ import {
 
 function safeName(value: string): string {
   const cleaned = value.replace(/[\\/:*?"<>|\n\r\t]/g, '').trim()
-  return cleaned.slice(0, 40) || '旅のしおり'
+  return cleaned.slice(0, 40) || t('pdf.defaultTitle')
 }
 
 async function capture(node: HTMLElement, scale: number): Promise<HTMLCanvasElement> {
@@ -53,7 +54,7 @@ export async function exportTripPdf(
       pdf.addImage(data, 'JPEG', 0, 0, 210, 297, undefined, 'FAST')
     }
     onProgress?.(pages.length, pages.length)
-    pdf.save(`${safeName(trip.title)}-しおり.pdf`)
+    pdf.save(`${safeName(trip.title)}-${t('pdf.fileShiori')}.pdf`)
   } finally {
     root.remove()
   }
@@ -86,7 +87,7 @@ export async function exportTripPng(trip: Trip): Promise<void> {
     const poster = buildTripPoster(trip, root)
     await readyForCapture(root)
     const canvas = await capture(poster, 1.5)
-    downloadDataUrl(canvas.toDataURL('image/png'), `${safeName(trip.title)}-まとめ.png`)
+    downloadDataUrl(canvas.toDataURL('image/png'), `${safeName(trip.title)}-${t('pdf.fileSummary')}.png`)
   } finally {
     root.remove()
   }
@@ -100,7 +101,7 @@ export async function exportMemoriesPng(trip: Trip): Promise<void> {
     const poster = buildMemoriesPoster(trip, root)
     await readyForCapture(root)
     const canvas = await capture(poster, 1.3)
-    downloadDataUrl(canvas.toDataURL('image/png'), `${safeName(trip.title)}-思い出.png`)
+    downloadDataUrl(canvas.toDataURL('image/png'), `${safeName(trip.title)}-${t('pdf.fileMemories')}.png`)
   } finally {
     root.remove()
   }
@@ -114,7 +115,7 @@ export async function exportCoverPng(trip: Trip): Promise<void> {
     const pages = buildShioriPages(trip, root)
     await readyForCapture(root)
     const canvas = await capture(pages[0], 2)
-    downloadDataUrl(canvas.toDataURL('image/png'), `${safeName(trip.title)}-表紙.png`)
+    downloadDataUrl(canvas.toDataURL('image/png'), `${safeName(trip.title)}-${t('pdf.fileCover')}.png`)
   } finally {
     root.remove()
   }
