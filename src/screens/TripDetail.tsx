@@ -27,6 +27,8 @@ import { TripFormSheet } from '../components/TripFormSheet'
 import { PackingCard, TodoCard } from '../components/ChecklistCards'
 import { DiaryCard } from '../components/DiaryCard'
 import { MemoryAlbum } from '../components/MemoryAlbum'
+import { BudgetCard, SplitCard } from '../components/BudgetCard'
+import { ExpenseSheet } from '../components/ExpenseSheet'
 import { Lightbox } from '../components/Lightbox'
 import { toast } from '../components/Toast'
 import { usePhoto } from '../state/photos'
@@ -52,10 +54,12 @@ import {
 } from '../lib/date'
 import { mapDirectionsUrl, mapSearchUrl } from '../lib/maps'
 import { useScrolled } from '../lib/hooks'
-import { clsx, yen } from '../lib/util'
+import { clsx } from '../lib/util'
+import { formatMoney, roundMoney } from '../lib/money'
+import { collectExpenses, participantLabel, toHome, totalHome } from '../lib/expense'
 import { goHome, navigate } from '../App'
 import { t as tr, useT } from '../i18n'
-import type { Activity, Day } from '../types'
+import type { Activity, Day, Trip } from '../types'
 
 /* ---------------------------------------------------------------- 写真 */
 
@@ -83,17 +87,18 @@ function homeTimeLabel(time: string, endTime: string, diff: number): string | nu
 
 interface ActivityRowProps {
   activity: Activity
-  tripTimeDiff: number
+  trip: Trip
   onEdit: () => void
   onPhotoOpen: (index: number) => void
 }
 
-function ActivityRow({ activity, tripTimeDiff, onEdit, onPhotoOpen }: ActivityRowProps) {
+function ActivityRow({ activity, trip, onEdit, onPhotoOpen }: ActivityRowProps) {
   const t = useT()
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: activity.id,
   })
   const cat = category(activity.category)
+  const tripTimeDiff = trip.timeDiff
   const diff = activity.timeDiff ?? tripTimeDiff
   const home = homeTimeLabel(activity.time, activity.endTime, diff)
 
@@ -159,7 +164,7 @@ function ActivityRow({ activity, tripTimeDiff, onEdit, onPhotoOpen }: ActivityRo
           </span>
         </div>
 
-        {activity.place || activity.cost != null || activity.url ? (
+        {activity.place || activity.cost != null || activity.url || activity.payer ? (
           <div className="act__footer" style={{ padding: '0 12px 12px 16px', marginTop: -2 }}>
             {activity.place ? (
               <a
@@ -175,7 +180,13 @@ function ActivityRow({ activity, tripTimeDiff, onEdit, onPhotoOpen }: ActivityRo
             {activity.cost != null ? (
               <span className="act__chip num">
                 <Icon name="coin" size={12} strokeWidth={2.2} />
-                {yen(activity.cost)}
+                {formatMoney(activity.cost, activity.costCurrency || trip.currency)}
+              </span>
+            ) : null}
+            {activity.payer ? (
+              <span className="act__chip">
+                <Icon name="users" size={12} strokeWidth={2.2} />
+                {participantLabel(activity.payer)}
               </span>
             ) : null}
             {activity.url ? (
@@ -215,7 +226,12 @@ export function TripDetail({ tripId }: { tripId: string }) {
   const cover = usePhoto(trip?.coverPhotoId ?? null)
 
   const [dayIndex, setDayIndex] = useState(0)
-  const [editing, setEditing] = useState<{ activity: Activity; isNew: boolean } | null>(null)
+  const [editing, setEditing] = useState<{
+    dayId: string
+    activity: Activity
+    isNew: boolean
+  } | null>(null)
+  const [expenses, setExpenses] = useState(false)
   const [editDay, setEditDay] = useState(false)
   const [editTrip, setEditTrip] = useState(false)
   const [exporting, setExporting] = useState(false)
@@ -242,10 +258,13 @@ export function TripDetail({ tripId }: { tripId: string }) {
   const safeIndex = trip ? Math.min(dayIndex, Math.max(0, trip.days.length - 1)) : 0
   const day: Day | undefined = trip?.days[safeIndex]
 
-  const dayTotal = useMemo(
-    () => (day ? day.activities.reduce((n, a) => n + (a.cost ?? 0), 0) : 0),
-    [day],
-  )
+  const dayTotal = useMemo(() => {
+    if (!trip || !day) return 0
+    return day.activities.reduce(
+      (n, a) => n + (a.cost == null ? 0 : toHome(trip, a.cost, a.costCurrency)),
+      0,
+    )
+  }, [trip, day])
 
   if (!trip) {
     return (
@@ -267,10 +286,7 @@ export function TripDetail({ tripId }: { tripId: string }) {
   const th = theme(trip.theme)
   const left = daysUntil(trip.startDate)
   const totalPlans = trip.days.reduce((n, d) => n + d.activities.length, 0)
-  const tripTotal = trip.days.reduce(
-    (n, d) => n + d.activities.reduce((m, a) => m + (a.cost ?? 0), 0),
-    0,
-  )
+  const tripTotal = totalHome(collectExpenses(trip))
 
   function handleDragEnd(event: DragEndEvent) {
     setDragging(false)
@@ -339,7 +355,7 @@ export function TripDetail({ tripId }: { tripId: string }) {
               {tripTotal > 0 ? (
                 <span className="cover__pill num">
                   <Icon name="coin" size={13} strokeWidth={2.2} />
-                  {yen(tripTotal)}
+                  {formatMoney(roundMoney(tripTotal, trip.homeCurrency), trip.homeCurrency)}
                 </span>
               ) : null}
               {left != null && left > 0 ? (
@@ -413,7 +429,8 @@ export function TripDetail({ tripId }: { tripId: string }) {
               </span>
               {dayTotal > 0 ? (
                 <span className="stat-chip">
-                  {t('day.sum.cost')} <b>{yen(dayTotal)}</b>
+                  {t('day.sum.cost')}{' '}
+                  <b>{formatMoney(roundMoney(dayTotal, trip.homeCurrency), trip.homeCurrency)}</b>
                 </span>
               ) : null}
               {day.activities.length > 1 ? (
@@ -440,7 +457,7 @@ export function TripDetail({ tripId }: { tripId: string }) {
                 <button
                   className="btn btn--primary"
                   style={{ marginTop: 18 }}
-                  onClick={() => setEditing({ activity: emptyActivity(), isNew: true })}
+                  onClick={() => setEditing({ dayId: day.id, activity: emptyActivity(), isNew: true })}
                 >
                   <Icon name="plus" size={17} strokeWidth={2.4} />
                   {t('day.empty.cta')}
@@ -467,8 +484,8 @@ export function TripDetail({ tripId }: { tripId: string }) {
                         <Fragment key={activity.id}>
                           <ActivityRow
                             activity={activity}
-                            tripTimeDiff={trip.timeDiff}
-                            onEdit={() => setEditing({ activity, isNew: false })}
+                            trip={trip}
+                            onEdit={() => setEditing({ dayId: day.id, activity, isNew: false })}
                             onPhotoOpen={(photoIndex) =>
                               setPhotoView({ ids: activity.photoIds, index: photoIndex })
                             }
@@ -498,7 +515,7 @@ export function TripDetail({ tripId }: { tripId: string }) {
               <button
                 className="btn btn--soft btn--block"
                 style={{ marginTop: 6 }}
-                onClick={() => setEditing({ activity: emptyActivity(), isNew: true })}
+                onClick={() => setEditing({ dayId: day.id, activity: emptyActivity(), isNew: true })}
               >
                 <Icon name="plus" size={17} strokeWidth={2.4} />
                 {t('day.addPlan', { n: safeIndex + 1 })}
@@ -510,6 +527,20 @@ export function TripDetail({ tripId }: { tripId: string }) {
         {day ? (
           <div style={{ marginTop: 24 }}>
             <DiaryCard trip={trip} day={day} index={safeIndex} />
+          </div>
+        ) : null}
+
+        <h2 className="section-title" style={{ margin: '34px 0 12px' }}>
+          <Icon name="wallet" size={17} />
+          {t('money.field.section')}
+          <i className="section-title__line" />
+        </h2>
+
+        <BudgetCard trip={trip} onOpenDetail={() => setExpenses(true)} />
+
+        {trip.members.length > 0 ? (
+          <div style={{ marginTop: 16 }}>
+            <SplitCard trip={trip} />
           </div>
         ) : null}
 
@@ -545,7 +576,7 @@ export function TripDetail({ tripId }: { tripId: string }) {
       {day ? (
         <button
           className="fab"
-          onClick={() => setEditing({ activity: emptyActivity(), isNew: true })}
+          onClick={() => setEditing({ dayId: day.id, activity: emptyActivity(), isNew: true })}
         >
           <Icon name="plus" size={20} strokeWidth={2.6} />
           {t('act.add')}
@@ -561,15 +592,24 @@ export function TripDetail({ tripId }: { tripId: string }) {
         />
       ) : null}
 
-      {editing && day ? (
+      {editing ? (
         <ActivitySheet
-          tripId={trip.id}
-          dayId={day.id}
-          days={trip.days}
+          trip={trip}
+          dayId={editing.dayId}
           activity={editing.activity}
           isNew={editing.isNew}
-          tripTimeDiff={trip.timeDiff}
           onClose={() => setEditing(null)}
+        />
+      ) : null}
+
+      {expenses ? (
+        <ExpenseSheet
+          trip={trip}
+          onClose={() => setExpenses(false)}
+          onPick={(dayId, activity) => {
+            setExpenses(false)
+            setEditing({ dayId, activity, isNew: false })
+          }}
         />
       ) : null}
 

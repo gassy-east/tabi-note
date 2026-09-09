@@ -10,10 +10,6 @@ export function clsx(...parts: Array<string | false | null | undefined>): string
   return parts.filter(Boolean).join(' ')
 }
 
-export function yen(n: number): string {
-  return '¥' + n.toLocaleString('ja-JP')
-}
-
 export function clamp(n: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, n))
 }

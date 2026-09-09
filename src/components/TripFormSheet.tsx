@@ -3,10 +3,12 @@ import { Sheet } from './Sheet'
 import { Icon } from './Icon'
 import { CoverPicker } from './PhotoUploader'
 import { ChecklistTemplateSheet } from './ChecklistTemplateSheet'
-import { useTemplate, type TemplateKind } from '../state/settings'
+import { useHomeCurrency, useTemplate, type TemplateKind } from '../state/settings'
 import { THEMES, themeLabel } from '../lib/catalog'
 import { addDays, nightsBetween, rangeLabel } from '../lib/date'
+import { parseAmount } from '../lib/money'
 import { OffsetPicker } from './OffsetPicker'
+import { CurrencySelect } from './CurrencySelect'
 import {
   createTrip,
   newTripDefaults,
@@ -101,6 +103,11 @@ export function TripFormSheet({ trip, onClose, onCreated }: TripFormSheetProps) 
   const [endDate, setEndDate] = useState(trip?.endDate ?? defaults.endDate)
   const [themeId, setThemeId] = useState<ThemeId>(trip?.theme ?? 'sunset')
   const [timeDiff, setTimeDiff] = useState<number>(trip?.timeDiff ?? 0)
+  const defaultHome = useHomeCurrency()
+  const [currency, setCurrency] = useState(trip?.currency || defaults.currency)
+  const [homeCurrency, setHomeCurrencyState] = useState(trip?.homeCurrency || defaultHome)
+  const [rateText, setRateText] = useState(String(trip?.rate ?? 1))
+  const [budgetText, setBudgetText] = useState(trip?.budget != null ? String(trip.budget) : '')
   const [members, setMembers] = useState((trip?.members ?? []).join(', '))
   const [memo, setMemo] = useState(trip?.memo ?? '')
   const [coverId, setCoverId] = useState<string | null>(trip?.coverPhotoId ?? null)
@@ -129,6 +136,10 @@ export function TripFormSheet({ trip, onClose, onCreated }: TripFormSheetProps) 
       .map((m) => m.trim())
       .filter(Boolean)
 
+    const parsedRate = Number(rateText)
+    const rate = currency === homeCurrency || !(parsedRate > 0) ? 1 : parsedRate
+    const budget = parseAmount(budgetText, homeCurrency)
+
     if (trip) {
       updateTripMeta(trip.id, {
         title,
@@ -137,6 +148,10 @@ export function TripFormSheet({ trip, onClose, onCreated }: TripFormSheetProps) 
         endDate,
         theme: themeId,
         timeDiff,
+        currency,
+        homeCurrency,
+        rate,
+        budget,
         members: memberList,
         memo,
       })
@@ -150,6 +165,10 @@ export function TripFormSheet({ trip, onClose, onCreated }: TripFormSheetProps) 
         endDate,
         theme: themeId,
         timeDiff,
+        currency,
+        homeCurrency,
+        rate,
+        budget,
         members: memberList,
         withTodoTemplate: withTodos,
         withPackingTemplate: withPacking,
@@ -257,6 +276,71 @@ export function TripFormSheet({ trip, onClose, onCreated }: TripFormSheetProps) 
           <p className="tiny muted" style={{ marginTop: 6 }}>
             {t('tz.tripHint')}
           </p>
+        </div>
+
+        <h3 className="section-title" style={{ fontSize: 14, margin: '22px 0 12px' }}>
+          <Icon name="wallet" size={16} />
+          {t('money.field.section')}
+          <i className="section-title__line" />
+        </h3>
+
+        <div className="field">
+          <label className="field__label" htmlFor="trip-currency">
+            <Icon name="coin" size={14} /> {t('money.field.currency')}
+          </label>
+          <CurrencySelect id="trip-currency" value={currency} onChange={setCurrency} />
+        </div>
+
+        <div className="field">
+          <label className="field__label" htmlFor="trip-home-currency">
+            <Icon name="wallet" size={14} /> {t('money.field.homeCurrency')}
+          </label>
+          <CurrencySelect
+            id="trip-home-currency"
+            value={homeCurrency}
+            onChange={setHomeCurrencyState}
+          />
+        </div>
+
+        {currency === homeCurrency ? (
+          <p className="tiny muted" style={{ margin: '-8px 0 15px' }}>
+            {t('money.sameCurrency')}
+          </p>
+        ) : (
+          <div className="field">
+            <label className="field__label" htmlFor="trip-rate">
+              <Icon name="swap" size={14} /> {t('money.field.rate')}
+            </label>
+            <div className="money__rate">
+              <span className="num">1 {currency} =</span>
+              <input
+                id="trip-rate"
+                className="input num"
+                inputMode="decimal"
+                value={rateText}
+                placeholder="150"
+                onChange={(e) => setRateText(e.target.value.replace(/[^\d.]/g, ''))}
+              />
+              <span className="num">{homeCurrency}</span>
+            </div>
+            <p className="tiny muted" style={{ marginTop: 6 }}>
+              {t('money.field.rateNote')}
+            </p>
+          </div>
+        )}
+
+        <div className="field">
+          <label className="field__label" htmlFor="trip-budget">
+            <Icon name="coin" size={14} /> {t('money.field.budget', { code: homeCurrency })}
+          </label>
+          <input
+            id="trip-budget"
+            className="input num"
+            inputMode="decimal"
+            value={budgetText}
+            placeholder="150000"
+            onChange={(e) => setBudgetText(e.target.value.replace(/[^\d.]/g, ''))}
+          />
         </div>
 
         <div className="field">

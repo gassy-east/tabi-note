@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react'
 import { defaultPacking, defaultTodos } from '../lib/catalog'
+import { guessHomeCurrency } from '../lib/money'
 import { useLang } from '../i18n'
 
 export type TemplateKind = 'packing' | 'todo'
@@ -83,4 +84,44 @@ export function resetTemplate(kind: TemplateKind): void {
 /** この端末でまだ編集されていないか */
 export function isFactoryTemplate(kind: TemplateKind): boolean {
   return stored[kind] === null
+}
+
+/* ------------------------------------------------ 自宅の通貨 */
+
+const CURRENCY_KEY = 'tabinote.homeCurrency'
+
+function readCurrency(): string | null {
+  try {
+    const raw = localStorage.getItem(CURRENCY_KEY)
+    return raw && /^[A-Z]{3}$/.test(raw) ? raw : null
+  } catch {
+    return null
+  }
+}
+
+let homeCurrency: string | null = readCurrency()
+
+/** 新しい旅を作るときの、精算に使う通貨。未設定なら表示言語から推測する */
+export function getHomeCurrency(): string {
+  return homeCurrency ?? guessHomeCurrency()
+}
+
+export function setHomeCurrency(code: string): void {
+  homeCurrency = code
+  try {
+    localStorage.setItem(CURRENCY_KEY, code)
+  } catch {
+    /* 保存できなくても、その場の選択は反映する */
+  }
+  emit()
+}
+
+export function useHomeCurrency(): string {
+  useLang()
+  useSyncExternalStore(
+    subscribe,
+    () => homeCurrency,
+    () => homeCurrency,
+  )
+  return getHomeCurrency()
 }

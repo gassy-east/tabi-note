@@ -3,7 +3,13 @@ import { Sheet } from './Sheet'
 import { Icon } from './Icon'
 import { toast } from './Toast'
 import { useStore } from '../state/store'
-import { useTemplate, type TemplateKind } from '../state/settings'
+import {
+  setHomeCurrency,
+  useHomeCurrency,
+  useTemplate,
+  type TemplateKind,
+} from '../state/settings'
+import { CurrencySelect } from './CurrencySelect'
 import { ChecklistTemplateSheet } from './ChecklistTemplateSheet'
 import { LanguageSheet } from './LanguageSheet'
 import { AppearanceSheet } from './AppearanceSheet'
@@ -29,6 +35,7 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
   const [appearance, setAppearance] = useState(false)
   const packingTemplate = useTemplate('packing')
   const todoTemplate = useTemplate('todo')
+  const homeCurrency = useHomeCurrency()
   const langLabel = LANGS.find((l) => l.id === getLang())?.label ?? ''
   useSkin()
   const skinLabel = t(`skin.${getSkin()}` as MessageKey)
@@ -122,6 +129,20 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
           </button>
         </div>
 
+        <div className="field" style={{ marginBottom: 18 }}>
+          <label className="field__label" htmlFor="settings-currency">
+            <Icon name="wallet" size={14} /> {t('settings.homeCurrency')}
+          </label>
+          <CurrencySelect
+            id="settings-currency"
+            value={homeCurrency}
+            onChange={setHomeCurrency}
+          />
+          <p className="tiny muted" style={{ marginTop: 6 }}>
+            {t('settings.homeCurrencySub')}
+          </p>
+        </div>
+
         <div
           style={{
             padding: '14px 16px',
@@ -179,7 +200,7 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
           ) : null}
           <div className="row" style={{ justifyContent: 'space-between' }}>
             <span>{t('settings.version')}</span>
-            <b className="num">1.2.0</b>
+            <b className="num">1.3.0</b>
           </div>
         </div>
 

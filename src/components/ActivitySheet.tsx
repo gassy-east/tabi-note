@@ -8,30 +8,25 @@ import { mapSearchUrl } from '../lib/maps'
 import { formatDate, formatOffset, shiftTime } from '../lib/date'
 import { OffsetPicker } from './OffsetPicker'
 import { addActivity, moveActivityToDay, removeActivity, updateActivity } from '../state/store'
+import { formatMoney, parseAmount, roundMoney } from '../lib/money'
+import { participantLabel, participants, toHome } from '../lib/expense'
+import { clsx } from '../lib/util'
 import { useT } from '../i18n'
-import type { Activity, CategoryId, Day } from '../types'
+import type { Activity, CategoryId, Trip } from '../types'
 
 interface ActivitySheetProps {
-  tripId: string
+  trip: Trip
   dayId: string
-  days: Day[]
   activity: Activity
   isNew: boolean
-  /** 旅全体の時差。予定側で上書きできる */
-  tripTimeDiff: number
   onClose: () => void
 }
 
-export function ActivitySheet({
-  tripId,
-  dayId,
-  days,
-  activity,
-  isNew,
-  tripTimeDiff,
-  onClose,
-}: ActivitySheetProps) {
+export function ActivitySheet({ trip, dayId, activity, isNew, onClose }: ActivitySheetProps) {
   const t = useT()
+  const tripId = trip.id
+  const days = trip.days
+  const tripTimeDiff = trip.timeDiff
   const [draft, setDraft] = useState<Activity>(activity)
   const [targetDay, setTargetDay] = useState(dayId)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -39,6 +34,15 @@ export function ActivitySheet({
   const cat = category(draft.category)
   const effectiveDiff = draft.timeDiff ?? tripTimeDiff
   const home = draft.time && effectiveDiff ? shiftTime(draft.time, -effectiveDiff) : null
+
+  // 費用まわり。現地と自宅で通貨が違うときだけ、どちらで払ったかを選ばせる
+  const costCurrency = draft.costCurrency || trip.currency
+  const twoCurrencies = trip.currency !== trip.homeCurrency
+  const converted =
+    draft.cost != null && costCurrency !== trip.homeCurrency
+      ? toHome(trip, draft.cost, costCurrency)
+      : null
+  const people = participants(trip)
 
   function patch(next: Partial<Activity>) {
     setDraft((d) => ({ ...d, ...next }))
@@ -227,18 +231,15 @@ export function ActivitySheet({
         <div className="field-row">
           <div className="field">
             <label className="field__label" htmlFor="act-cost">
-              <Icon name="coin" size={14} /> {t('act.field.cost')}
+              <Icon name="coin" size={14} /> {t('act.field.cost', { code: costCurrency })}
             </label>
             <input
               id="act-cost"
               className="input num"
-              inputMode="numeric"
+              inputMode="decimal"
               value={draft.cost ?? ''}
               placeholder="1500"
-              onChange={(e) => {
-                const v = e.target.value.replace(/[^\d]/g, '')
-                patch({ cost: v === '' ? null : Number(v) })
-              }}
+              onChange={(e) => patch({ cost: parseAmount(e.target.value, costCurrency) })}
             />
           </div>
           <div className="field">
@@ -256,6 +257,98 @@ export function ActivitySheet({
             />
           </div>
         </div>
+
+        {twoCurrencies ? (
+          <div className="field">
+            <span className="field__label">
+              <Icon name="swap" size={14} /> {t('money.costIn')}
+            </span>
+            <div className="money__switch">
+              <button
+                type="button"
+                className={clsx('money__tab', costCurrency === trip.currency && 'is-on')}
+                onClick={() => patch({ costCurrency: trip.currency })}
+              >
+                {t('money.currencyLocal', { code: trip.currency })}
+              </button>
+              <button
+                type="button"
+                className={clsx('money__tab', costCurrency === trip.homeCurrency && 'is-on')}
+                onClick={() => patch({ costCurrency: trip.homeCurrency })}
+              >
+                {t('money.currencyHome', { code: trip.homeCurrency })}
+              </button>
+            </div>
+            {converted != null ? (
+              <p className="tiny muted num" style={{ marginTop: 6 }}>
+                ≈ {formatMoney(roundMoney(converted, trip.homeCurrency), trip.homeCurrency)}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
+        {trip.members.length > 0 ? (
+          <div className="field">
+            <label className="field__label" htmlFor="act-payer">
+              <Icon name="users" size={14} /> {t('money.payer')}
+            </label>
+            <select
+              id="act-payer"
+              className="select"
+              value={draft.payer}
+              onChange={(e) => patch({ payer: e.target.value })}
+            >
+              <option value="">{t('money.payerNone')}</option>
+              {people.map((key) => (
+                <option key={key} value={key}>
+                  {participantLabel(key)}
+                </option>
+              ))}
+            </select>
+
+            {draft.payer ? (
+              <>
+                <span className="field__label" style={{ marginTop: 12 }}>
+                  <Icon name="check" size={14} /> {t('money.shareWith')}
+                </span>
+                <div className="catpick">
+                  {people.map((key) => {
+                    const on = draft.shareWith.includes(key)
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        className="catpick__item"
+                        style={
+                          on
+                            ? {
+                                background: 'var(--teal-soft)',
+                                borderColor: 'var(--teal)',
+                                color: 'var(--teal)',
+                              }
+                            : undefined
+                        }
+                        onClick={() =>
+                          patch({
+                            shareWith: on
+                              ? draft.shareWith.filter((k) => k !== key)
+                              : [...draft.shareWith, key],
+                          })
+                        }
+                      >
+                        {on ? <Icon name="check" size={14} strokeWidth={2.4} /> : null}
+                        {participantLabel(key)}
+                      </button>
+                    )
+                  })}
+                </div>
+                <p className="tiny muted" style={{ marginTop: 6 }}>
+                  {t('money.shareAll')}
+                </p>
+              </>
+            ) : null}
+          </div>
+        ) : null}
 
         <div className="field">
           <span className="field__label">

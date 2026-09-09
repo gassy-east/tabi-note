@@ -34,6 +34,9 @@ export type IconName =
   | 'book'
   | 'compass'
   | 'route'
+  | 'receipt'
+  | 'swap'
+  | 'wallet'
 
 const PATHS: Record<IconName, ReactNode> = {
   camera: (
@@ -185,6 +188,20 @@ const PATHS: Record<IconName, ReactNode> = {
       <circle cx="6.4" cy="6.4" r="2.6" />
       <circle cx="17.6" cy="17.6" r="2.6" />
       <path d="M9 6.4h5.2a3.2 3.2 0 0 1 0 6.4H9.8a3.2 3.2 0 0 0 0 6.4H15" />
+    </>
+  ),
+  receipt: (
+    <>
+      <path d="M6 3.6h12v16.8l-2.4-1.6-2.4 1.6-2.4-1.6-2.4 1.6L6 18.8z" />
+      <path d="M9.2 8.4h5.6M9.2 12.2h5.6" />
+    </>
+  ),
+  swap: <path d="M4.6 8.6h13.2m-3.4-3.6 3.6 3.6-3.6 3.6M19.4 15.4H6.2m3.4-3.6-3.6 3.6 3.6 3.6" />,
+  wallet: (
+    <>
+      <path d="M3.8 7.6a2 2 0 0 1 2-2h11.4a1.6 1.6 0 0 1 1.6 1.6v1.4" />
+      <path d="M3.8 7.6v9.6a2.2 2.2 0 0 0 2.2 2.2h12.2a1.8 1.8 0 0 0 1.8-1.8v-6.8a1.8 1.8 0 0 0-1.8-1.8H5.8" />
+      <circle cx="16.2" cy="13.4" r="1.15" />
     </>
   ),
 }

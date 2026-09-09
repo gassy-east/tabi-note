@@ -12,7 +12,7 @@ import type {
 import { photosDb, tripsDb } from '../lib/db'
 import { addDays, nightsBetween, todayIso } from '../lib/date'
 import { moveItem, uid } from '../lib/util'
-import { getTemplate } from './settings'
+import { getHomeCurrency, getTemplate } from './settings'
 import { t } from '../i18n'
 
 interface StoreState {
@@ -58,9 +58,16 @@ function sortTrips(trips: Trip[]): Trip[] {
 
 /** 古いバージョンで作られた旅にも、後から足した項目を補う */
 export function normalizeTrip(trip: Trip): Trip {
+  // 通貨を後から足したので、古い旅は「現地も自宅も同じ通貨」として読む
+  const homeCurrency = trip.homeCurrency || getHomeCurrency()
+  const currency = trip.currency || homeCurrency
   return {
     ...trip,
     timeDiff: typeof trip.timeDiff === 'number' ? trip.timeDiff : 0,
+    currency,
+    homeCurrency,
+    rate: currency === homeCurrency ? 1 : typeof trip.rate === 'number' && trip.rate > 0 ? trip.rate : 1,
+    budget: typeof trip.budget === 'number' ? trip.budget : null,
     todos: trip.todos ?? [],
     packing: trip.packing ?? [],
     memories: trip.memories ?? [],
@@ -71,6 +78,9 @@ export function normalizeTrip(trip: Trip): Trip {
       activities: (d.activities ?? []).map((a) => ({
         ...a,
         timeDiff: a.timeDiff ?? null,
+        costCurrency: a.costCurrency ?? '',
+        payer: a.payer ?? '',
+        shareWith: a.shareWith ?? [],
       })),
     })),
   }
@@ -110,6 +120,10 @@ export interface NewTripInput {
   endDate: string
   theme: ThemeId
   timeDiff: number
+  currency: string
+  homeCurrency: string
+  rate: number
+  budget: number | null
   members: string[]
   withTodoTemplate: boolean
   withPackingTemplate: boolean
@@ -131,6 +145,10 @@ export function createTrip(input: NewTripInput): string {
     coverPhotoId: null,
     theme: input.theme,
     timeDiff: input.timeDiff,
+    currency: input.currency,
+    homeCurrency: input.homeCurrency,
+    rate: input.currency === input.homeCurrency ? 1 : input.rate,
+    budget: input.budget,
     members: input.members,
     memo: '',
     days: Array.from({ length: count }, (_, i) => emptyDay(addDays(input.startDate, i))),
@@ -204,6 +222,10 @@ export interface TripMetaPatch {
   endDate: string
   theme: ThemeId
   timeDiff: number
+  currency: string
+  homeCurrency: string
+  rate: number
+  budget: number | null
   members: string[]
   memo: string
 }
@@ -215,7 +237,13 @@ export function updateTripMeta(id: string, patch: TripMetaPatch): void {
     while (days.length < count) days.push(emptyDay(''))
     if (days.length > count) days = days.slice(0, count)
     days = days.map((d, i) => ({ ...d, date: addDays(patch.startDate, i) }))
-    return { ...trip, ...patch, title: patch.title.trim() || t('trip.untitled'), days }
+    return {
+      ...trip,
+      ...patch,
+      rate: patch.currency === patch.homeCurrency ? 1 : patch.rate,
+      title: patch.title.trim() || t('trip.untitled'),
+      days,
+    }
   })
 }
 
@@ -256,6 +284,9 @@ export function emptyActivity(category: CategoryId = 'sight'): Activity {
     place: '',
     memo: '',
     cost: null,
+    costCurrency: '',
+    payer: '',
+    shareWith: [],
     timeDiff: null,
     url: '',
     photoIds: [],
@@ -501,6 +532,10 @@ export function newTripDefaults(): NewTripInput {
     endDate: addDays(start, 2),
     theme: 'sunset',
     timeDiff: 0,
+    currency: getHomeCurrency(),
+    homeCurrency: getHomeCurrency(),
+    rate: 1,
+    budget: null,
     members: [],
     withTodoTemplate: true,
     withPackingTemplate: true,

@@ -6,7 +6,7 @@ import { downloadBlob } from './image'
 import { t } from '../i18n'
 
 const FORMAT = 'tabinote-backup'
-const VERSION = 3
+const VERSION = 4
 
 interface BackupFile {
   format: string

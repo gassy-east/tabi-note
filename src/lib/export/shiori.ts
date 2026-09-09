@@ -2,7 +2,17 @@ import type { Activity, Day, Memory, Trip } from '../../types'
 import { category, categoryLabel, theme } from '../catalog'
 import { formatDate, formatDot, nightsBetween, rangeLabel, shiftTime, weekday } from '../date'
 import { t } from '../../i18n'
-import { yen } from '../util'
+import { formatMoney, formatRate, roundMoney } from '../money'
+import {
+  balances,
+  collectExpenses,
+  hasSplit,
+  participantLabel,
+  settle,
+  sumByCategory,
+  sumByDay,
+  totalHome,
+} from '../expense'
 import { loadPhotos, peekPhoto } from '../../state/photos'
 import { collectPhotoIds } from '../../state/store'
 
@@ -137,6 +147,16 @@ const CSS = `
 .sh-costrow { display: flex; align-items: baseline; padding: 9px 0; border-bottom: 1px dashed #f0e9dd; font-size: 13.5px; }
 .sh-costrow span { flex: 1; min-width: 0; }
 .sh-costrow b { font-size: 15px; font-weight: 700; text-align: right; }
+.sh-costrow em { font-style: normal; font-size: 10.5px; font-weight: 800; color: #98a1ae; margin-left: 8px; letter-spacing: 0.04em; }
+.sh-costcat { width: 100%; padding: 9px 0; border-bottom: 1px dashed #f0e9dd; }
+.sh-costline { display: flex; align-items: baseline; font-size: 13.5px; }
+.sh-costline span { flex: 1; min-width: 0; }
+.sh-costline b { font-size: 15px; font-weight: 700; text-align: right; }
+.sh-costmeter { height: 4px; border-radius: 999px; background: #f0e9dd; overflow: hidden; margin-top: 7px; }
+.sh-costmeter i { display: block; height: 100%; border-radius: 999px; }
+.sh-budgetline { width: 100%; display: flex; align-items: baseline; margin-top: 12px; font-size: 12.5px; color: #6b7482; }
+.sh-budgetline span { flex: 1; min-width: 0; }
+.sh-budgetline b { font-weight: 800; text-align: right; }
 .sh-total { display: flex; align-items: baseline; margin-top: 14px; padding: 14px 18px; border-radius: 12px; background: #faf6ef; }
 .sh-total span { flex: 1; min-width: 0; font-size: 12px; font-weight: 800; letter-spacing: 0.14em; color: #6b7482; }
 .sh-total b { font-size: 26px; font-weight: 700; text-align: right; }
@@ -253,15 +273,22 @@ function timeLabel(act: Activity, tripDiff: number): string {
   return `<b class="sh-num">${esc(act.time)}</b>${end}${home}`
 }
 
-function activityHtml(act: Activity, tripDiff: number): string {
+function activityHtml(act: Activity, trip: Trip): string {
   const cat = category(act.category)
   const photos = act.photoIds.slice(0, 3).map((id) => photoTag(id, 'sh-photo')).join('')
   const chips: string[] = []
-  if (act.cost != null) chips.push(`<span class="sh-chip sh-num">${esc(yen(act.cost))}</span>`)
+  if (act.cost != null) {
+    chips.push(
+      `<span class="sh-chip sh-num">${esc(
+        formatMoney(act.cost, act.costCurrency || trip.currency),
+      )}</span>`,
+    )
+  }
+  if (act.payer) chips.push(`<span class="sh-chip">${esc(participantLabel(act.payer))}</span>`)
   if (act.url) chips.push(`<span class="sh-chip">${esc(t('act.hasLink'))}</span>`)
   return `
     <div class="sh-item">
-      <div class="sh-time">${timeLabel(act, tripDiff)}</div>
+      <div class="sh-time">${timeLabel(act, trip.timeDiff)}</div>
       <div class="sh-card">
         <div class="sh-stripe" style="background:${cat.color}"></div>
         <span class="sh-tag" style="background:${cat.tint};color:${cat.color}">${esc(categoryLabel(act.category))}</span>
@@ -407,11 +434,12 @@ function makeFlow(
 
 /** 準備（やること・持ち物）と費用のページ */
 function summaryPages(trip: Trip, root: HTMLElement): HTMLElement[] {
-  const costs = trip.days.map((d) => ({
-    date: d.date,
-    total: d.activities.reduce((n, a) => n + (a.cost ?? 0), 0),
-  }))
-  const grand = costs.reduce((n, c) => n + c.total, 0)
+  const expenses = collectExpenses(trip)
+  const costs = sumByDay(trip, expenses)
+  const cats = sumByCategory(expenses)
+  const grand = totalHome(expenses)
+  const home = trip.homeCurrency
+  const money = (n: number) => formatMoney(roundMoney(n, home), home)
   const todos = trip.todos ?? []
   const packing = trip.packing ?? []
   if (todos.length === 0 && packing.length === 0 && grand === 0 && !trip.memo) return []
@@ -441,23 +469,92 @@ function summaryPages(trip: Trip, root: HTMLElement): HTMLElement[] {
   }
 
   if (grand > 0) {
+    if (cats.length > 1) {
+      flow.push(node(`<div class="sh-secthead">${esc(t('pdf.categorySection'))}</div>`))
+      for (const c of cats) {
+        const def = category(c.id)
+        flow.push(
+          node(
+            `<div class="sh-costcat">
+              <div class="sh-costline"><span>${esc(categoryLabel(c.id))}<em>${Math.round(
+                c.ratio * 100,
+              )}%</em></span><b class="sh-num">${esc(money(c.total))}</b></div>
+              <div class="sh-costmeter"><i style="width:${Math.max(
+                c.ratio * 100,
+                1.5,
+              )}%;background:${def.color}"></i></div>
+            </div>`,
+          ),
+        )
+      }
+    }
+
     flow.push(node(`<div class="sh-secthead">${esc(t('pdf.costSection'))}</div>`))
     costs.forEach((c, i) => {
       flow.push(
         node(
           `<div class="sh-costrow"><span>${esc(t('day.label'))} ${i + 1}　${esc(
-            formatDate(c.date),
-          )}</span><b class="sh-num">${esc(yen(c.total))}</b></div>`,
+            formatDate(c.day.date),
+          )}</span><b class="sh-num">${esc(money(c.total))}</b></div>`,
         ),
       )
     })
+
     flow.push(
       node(
         `<div class="sh-total"><span>${esc(t('pdf.total'))}</span><b class="sh-num sh-serif">${esc(
-          yen(grand),
+          money(grand),
         )}</b></div>`,
       ),
     )
+
+    if (trip.budget != null && trip.budget > 0) {
+      const over = grand > trip.budget
+      flow.push(
+        node(
+          `<div class="sh-budgetline"><span>${esc(
+            over
+              ? t('pdf.budgetOverLine', {
+                  budget: money(trip.budget),
+                  over: money(grand - trip.budget),
+                })
+              : t('pdf.budgetLine', {
+                  budget: money(trip.budget),
+                  left: money(trip.budget - grand),
+                }),
+          )}</span></div>`,
+        ),
+      )
+    }
+
+    if (trip.currency !== home) {
+      flow.push(
+        node(
+          `<div class="sh-budgetline"><span class="sh-num">${esc(
+            t('pdf.rateNote', { local: trip.currency, v: formatRate(trip.rate, home) }),
+          )}</span></div>`,
+        ),
+      )
+    }
+
+    if (hasSplit(trip, expenses)) {
+      const transfers = settle(balances(trip, expenses), home)
+      if (transfers.length > 0) {
+        flow.push(node(`<div class="sh-secthead">${esc(t('pdf.splitSection'))}</div>`))
+        for (const tr of transfers) {
+          flow.push(
+            node(
+              `<div class="sh-costrow"><span>${esc(
+                t('money.settleRow', {
+                  from: participantLabel(tr.from),
+                  to: participantLabel(tr.to),
+                }),
+              )}</span><b class="sh-num">${esc(money(tr.amount))}</b></div>`,
+            ),
+          )
+        }
+      }
+    }
   }
 
   if (trip.memo) {
@@ -544,7 +641,7 @@ export function buildShioriPages(trip: Trip, root: HTMLElement): HTMLElement[] {
       empty.textContent = t('pdf.noPlans')
       flow.body.appendChild(empty)
     } else {
-      for (const act of day.activities) flow.push(node(activityHtml(act, trip.timeDiff)))
+      for (const act of day.activities) flow.push(node(activityHtml(act, trip)))
     }
 
     if (day.diary) {
@@ -579,7 +676,7 @@ export function buildShioriPages(trip: Trip, root: HTMLElement): HTMLElement[] {
 /** 1 日ぶんの縦長ポスター（PNG 用） */
 export function buildDayPoster(trip: Trip, day: Day, index: number, root: HTMLElement): HTMLElement {
   const th = theme(trip.theme)
-  const total = day.activities.reduce((n, a) => n + (a.cost ?? 0), 0)
+  const total = totalHome(collectExpenses(trip).filter((e) => e.day.id === day.id))
   const poster = document.createElement('div')
   poster.className = 'sh-poster'
   poster.innerHTML = `
@@ -608,7 +705,7 @@ export function buildDayPoster(trip: Trip, day: Day, index: number, root: HTMLEl
     <div class="sh-poster-body">
       ${
         day.activities.length
-          ? day.activities.map((a) => activityHtml(a, trip.timeDiff)).join('')
+          ? day.activities.map((a) => activityHtml(a, trip)).join('')
           : `<div class="sh-empty">${esc(t('pdf.noPlans'))}</div>`
       }
       ${
@@ -619,7 +716,13 @@ export function buildDayPoster(trip: Trip, day: Day, index: number, root: HTMLEl
       }
     </div>
     <div class="sh-poster-foot">
-      <span>${esc(total > 0 ? t('pdf.dayCost', { v: yen(total) }) : t('app.name'))}</span>
+      <span>${esc(
+        total > 0
+          ? t('pdf.dayCost', {
+              v: formatMoney(roundMoney(total, trip.homeCurrency), trip.homeCurrency),
+            })
+          : t('app.name'),
+      )}</span>
       <span>${esc(formatDot(day.date))}・${esc(weekday(day.date))}</span>
     </div>`
   root.appendChild(poster)
@@ -631,10 +734,7 @@ export function buildTripPoster(trip: Trip, root: HTMLElement): HTMLElement {
   const th = theme(trip.theme)
   const cover = trip.coverPhotoId ? peekPhoto(trip.coverPhotoId) : null
   const plans = trip.days.reduce((n, d) => n + d.activities.length, 0)
-  const total = trip.days.reduce(
-    (n, d) => n + d.activities.reduce((m, a) => m + (a.cost ?? 0), 0),
-    0,
-  )
+  const total = totalHome(collectExpenses(trip))
   const poster = document.createElement('div')
   poster.className = 'sh-poster'
   poster.style.width = '1080px'
@@ -673,7 +773,7 @@ export function buildTripPoster(trip: Trip, root: HTMLElement): HTMLElement {
       ${
         total > 0
           ? `<div><div class="sh-fact-k" style="color:#98a1ae">${esc(t('pdf.budget'))}</div><div class="sh-serif sh-num" style="font-size:40px;font-weight:700">${esc(
-              yen(total),
+              formatMoney(roundMoney(total, trip.homeCurrency), trip.homeCurrency),
             )}</div></div>`
           : ''
       }

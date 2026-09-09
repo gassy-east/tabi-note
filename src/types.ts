@@ -19,8 +19,14 @@ export interface Activity {
   /** 地図リンクに使う場所名・住所 */
   place: string
   memo: string
-  /** 円。null なら未入力 */
+  /** 入力された金額。null なら未入力 */
   cost: number | null
+  /** cost の通貨コード。空なら旅の現地通貨とみなす */
+  costCurrency: string
+  /** 立て替えた人。'' なら未指定（割り勘の計算に入れない） */
+  payer: string
+  /** 割り勘の対象。空配列なら参加者全員で割る */
+  shareWith: string[]
   /** この予定だけの時差（時間）。null なら旅の設定にしたがう */
   timeDiff: number | null
   url: string
@@ -74,6 +80,14 @@ export interface Trip {
   theme: ThemeId
   /** 現地時間 − 自宅の時間（時間単位）。0 なら時差なし */
   timeDiff: number
+  /** 現地で使う通貨の ISO コード */
+  currency: string
+  /** 精算・集計に使う自宅の通貨の ISO コード */
+  homeCurrency: string
+  /** 現地通貨 1 に対する自宅通貨の額。同じ通貨なら 1 */
+  rate: number
+  /** 旅全体の予算（自宅通貨）。null なら未設定 */
+  budget: number | null
   members: string[]
   memo: string
   days: Day[]

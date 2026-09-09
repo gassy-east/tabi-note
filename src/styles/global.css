@@ -1368,6 +1368,501 @@ img {
 }
 
 /* ============================================================
+   費用のまとめ
+   ============================================================ */
+.money {
+  margin-top: 10px;
+  padding: 16px 16px 18px;
+}
+
+.money__blank {
+  margin-top: 12px;
+  padding: 18px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--field);
+  border: 1.5px dashed var(--line);
+  text-align: center;
+}
+
+.money__blank b {
+  display: block;
+  font-size: 14px;
+}
+
+.money__blank span {
+  display: block;
+  margin-top: 5px;
+  font-size: 12.5px;
+  color: var(--ink-4);
+  line-height: 1.7;
+}
+
+.money__total {
+  margin-top: 12px;
+}
+
+.money__totallabel {
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  font-weight: 800;
+  color: var(--ink-4);
+  text-transform: uppercase;
+}
+
+.money__total > b {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.2;
+  margin-top: 2px;
+}
+
+.money__totalsub {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 4px;
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+
+.money__budget {
+  margin-top: 14px;
+  padding: 12px 13px;
+  border-radius: var(--radius-sm);
+  background: var(--teal-soft);
+}
+
+.money__budget.is-over {
+  background: var(--danger-soft);
+}
+
+.money__budgethead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+
+.money__budgethead b {
+  flex: none;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--teal);
+}
+
+.money__budget.is-over .money__budgethead b {
+  color: var(--danger);
+}
+
+.money__budgetbar {
+  height: 7px;
+  border-radius: 999px;
+  background: var(--track);
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+.money__budgetbar i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--teal);
+  transition: width 0.5s var(--ease);
+}
+
+.money__budget.is-over .money__budgetbar i {
+  background: var(--danger);
+}
+
+.money__switch {
+  display: flex;
+  gap: 6px;
+  margin-top: 16px;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--chip);
+}
+
+.money__tab {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 10px;
+  border-radius: 999px;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink-3);
+  cursor: pointer;
+  transition: all 0.2s var(--ease);
+}
+
+.money__tab.is-on {
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: var(--shadow-xs);
+}
+
+.money__list {
+  margin-top: 12px;
+}
+
+.money__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+}
+
+.money__dot {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+}
+
+.money__dot--day {
+  color: #fff;
+  font-family: var(--font-num);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.money__rowmain {
+  flex: 1;
+  min-width: 0;
+}
+
+.money__rowhead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.money__rowlabel {
+  font-size: 13.5px;
+  font-weight: 700;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.money__rowlabel i {
+  font-style: normal;
+  font-weight: 500;
+  font-size: 11.5px;
+  color: var(--ink-4);
+  margin-left: 6px;
+}
+
+.money__rowhead b {
+  flex: none;
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.money__track {
+  height: 5px;
+  border-radius: 999px;
+  background: var(--track);
+  overflow: hidden;
+  margin-top: 6px;
+}
+
+.money__track i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.5s var(--ease);
+}
+
+.money__pct {
+  flex: none;
+  width: 34px;
+  text-align: right;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--ink-4);
+}
+
+/* ---- 割り勘 ---- */
+.money__people {
+  margin-top: 12px;
+}
+
+.money__person {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px dashed var(--line-2);
+}
+
+.money__person:last-child {
+  border-bottom: none;
+}
+
+.money__personmain {
+  flex: 1;
+  min-width: 0;
+}
+
+.money__personmain b {
+  display: block;
+  font-size: 14px;
+}
+
+.money__personmain i {
+  display: block;
+  font-style: normal;
+  font-size: 11.5px;
+  color: var(--ink-4);
+  margin-top: 2px;
+}
+
+.money__net {
+  flex: none;
+  text-align: right;
+  font-size: 13.5px;
+  color: var(--ink-4);
+}
+
+.money__net small {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.money__net b {
+  font-size: 14.5px;
+  font-weight: 800;
+}
+
+.money__net.is-plus {
+  color: var(--teal);
+}
+
+.money__net.is-minus {
+  color: var(--coral-deep);
+}
+
+.money__settle {
+  margin-top: 14px;
+  padding: 12px 13px;
+  border-radius: var(--radius-sm);
+  background: var(--field);
+  border: 1.5px solid var(--line);
+}
+
+.money__settlehead {
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  font-weight: 800;
+  color: var(--ink-4);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.money__transfer {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 5px 0;
+  font-size: 13.5px;
+}
+
+.money__transfer b {
+  flex: none;
+  font-weight: 800;
+}
+
+/* ---- 明細シート ---- */
+.money__sum {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding-bottom: 12px;
+  border-bottom: 1.5px solid var(--line-2);
+}
+
+.money__sum > span {
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  font-weight: 800;
+  color: var(--ink-4);
+  text-transform: uppercase;
+}
+
+.money__sum > b {
+  flex: 1;
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.money__sum > i {
+  font-style: normal;
+  font-size: 12px;
+  color: var(--ink-4);
+}
+
+.money__filters {
+  display: flex;
+  gap: 7px;
+  overflow-x: auto;
+  padding: 12px 0 2px;
+  scrollbar-width: none;
+}
+
+.money__filters::-webkit-scrollbar {
+  display: none;
+}
+
+.money__filter {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1.5px solid var(--line);
+  background: var(--card);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+
+.money__filter.is-on {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper-2);
+}
+
+.money__ledger {
+  margin-top: 8px;
+}
+
+.money__ledgerday {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 16px 0 4px;
+  padding-bottom: 5px;
+  border-bottom: 1.5px solid var(--line-2);
+  font-size: 11.5px;
+  letter-spacing: 0.1em;
+  font-weight: 800;
+  color: var(--ink-3);
+}
+
+.money__ledgerday i {
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--ink-4);
+  margin-left: 8px;
+}
+
+.money__ledgerday b {
+  flex: none;
+  letter-spacing: 0;
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.money__entry {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 0;
+  border: none;
+  background: none;
+  font: inherit;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+  border-bottom: 1px dashed var(--line-2);
+}
+
+.money__entry:last-child {
+  border-bottom: none;
+}
+
+.money__entrymain {
+  flex: 1;
+  min-width: 0;
+}
+
+.money__entrymain b {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.money__entrymain i {
+  display: block;
+  font-style: normal;
+  font-size: 11.5px;
+  color: var(--ink-4);
+  margin-top: 2px;
+}
+
+.money__entryamount {
+  flex: none;
+  text-align: right;
+}
+
+.money__entryamount b {
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.money__entryamount i {
+  display: block;
+  font-style: normal;
+  font-size: 11px;
+  color: var(--ink-4);
+  margin-top: 1px;
+}
+
+/* ---- 為替レートの入力 ---- */
+.money__rate {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.money__rate span {
+  flex: none;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-3);
+}
+
+.money__rate .input {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ============================================================
    フォーム
    ============================================================ */
 .field {
